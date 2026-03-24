@@ -407,13 +407,13 @@ body.view-panel{background:var(--bg);}
 .float-save.visible{animation:floatPop 0.22s ease forwards;}
 
 /* ── SHAREPOINT SYNC ── */
-.sync-btn{background:transparent;border:1px solid var(--dark-border2);border-radius:8px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:0.7rem;padding:7px 13px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all 0.2s;white-space:nowrap;}
+
 .sync-btn:hover{border-color:var(--mcm-orange);color:var(--mcm-orange);}
 .sync-btn.connected{border-color:rgba(0,255,136,0.35);color:var(--hacker);}
 .sync-btn.syncing{border-color:rgba(109,179,255,0.4);color:#6db3ff;animation:syncPulse 1s ease-in-out infinite;}
 .sync-btn.error{border-color:rgba(224,92,58,0.4);color:#ff8060;}
 @keyframes syncPulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
-.sync-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;}
+
 .sync-toast{position:fixed;bottom:80px;right:28px;z-index:999;background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:10px;padding:10px 16px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:var(--text-dim);transition:all 0.3s;opacity:0;pointer-events:none;max-width:260px;}
 .sync-toast.show{opacity:1;}
 .sync-toast.ok{border-color:rgba(0,255,136,0.35);color:var(--hacker);}
@@ -534,8 +534,8 @@ body.view-panel{background:var(--bg);}
 
 </style>
   <!-- Microsoft Authentication Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-authentication-library-for-js/2.38.3/msal-browser.min.js"></script>
+  
+
 </head>
 <body>
 <!-- ══ LOGIN SCREEN ══ -->
@@ -616,10 +616,7 @@ body.view-panel{background:var(--bg);}
         <div class="eng-badge-hint">cambiar perfil</div>
       </div>
     </div>
-    <button class="sync-btn" id="syncBtn" onclick="msalToggle()" title="Sincronizar con OneDrive/SharePoint">
-      <div class="sync-dot"></div>
-      <span id="syncLabel">Conectar OneDrive</span>
-    </button>
+
     <div class="hacker-status">
       <div class="h-dot"></div>
       <span>SISTEMA ACTIVO</span>
@@ -651,6 +648,7 @@ body.view-panel{background:var(--bg);}
           <div style="font-size:0.84rem;font-weight:600;color:var(--mcm-orange-lt);" id="dashEngName">—</div>
         </div>
       </div>
+<div id="fbStatus" style="display:flex;align-items:center;gap:6px;background:rgba(0,255,136,0.07);border:1px solid rgba(0,255,136,0.2);border-radius:8px;padding:6px 12px;"><div id="fbDot" style="width:7px;height:7px;border-radius:50%;background:rgba(0,255,136,0.3);transition:background 0.4s;flex-shrink:0;"></div><span id="fbLabel" style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text-dim);">Sin conexión</span></div>
       <div style="text-align:right;">
         <div id="dashDate" style="font-size:0.76rem;color:rgba(255,255,255,0.55);"></div>
         <div id="dashTime" style="font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:rgba(0,255,136,0.7);margin-top:2px;"></div>
@@ -1023,13 +1021,8 @@ body.view-panel{background:var(--bg);}
     <div class="modal-section-title">Tareas iniciales</div>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="fUseTpl" checked style="accent-color:var(--mcm-orange);width:16px;height:16px;"/><span style="font-size:0.84rem;color:#0d1f3c;">Usar plantilla de tareas predeterminada</span></label>
   </div>
-  <div class="modal-footer">
-    <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancelar</button>
-    <button class="btn btn-sm" id="modalSaveBtn" onclick="saveOTModal()">Crear OT</button>
-  </div>
-</div>
-</div>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-database-compat.min.js"></script>
 <script>
 var currentEngineer = null; // declarado temprano para evitar TDZ
 /* ═══════════════════════════════
@@ -1120,22 +1113,7 @@ function greet(){
 }
 greet();
 
-/* ═══════════════════════════════════════════════════════════
-   SHAREPOINT / ONEDRIVE SYNC  ·  MSAL + Graph API
-   ─────────────────────────────────────────────────────────
-   CONFIGURACIÓN: Reemplaza los valores de CLIENT_ID y
-   TENANT_ID con los de tu App Registration en Azure.
-   Ver: MCM-Guia-M365-DevProgram.txt (incluido en la entrega)
-════════════════════════════════════════════════════════════ */
-const AZ_CONFIG = {
-  clientId:    'TU_CLIENT_ID_AQUI',          // ← App (client) ID de Azure
-  tenantId:    'common',                     // ← 'common' para Multitenant (Dev Program)
-  redirectUri: window.location.href.split('?')[0], // URL actual del archivo
-};
-const GRAPH_SCOPES  = ['Files.ReadWrite', 'offline_access', 'User.Read'];
-// Archivo en OneDrive por ingeniero: MCM-GestionOT-zarate.json etc.
-function cloudFileName(){ return 'MCM-GestionOT-' + (currentEngineer?.key||'shared') + '.json'; }
-const STORE_AUTH    = 'mcm_az_account';
+
 const STORE_ENG     = 'mcm_engineer';        // ingeniero activo en sesión
 // Claves dinámicas por ingeniero — cada quien tiene sus propios datos
 function storeOTS()  { return 'mcm_ots_v3_'  + (currentEngineer?.key||'shared'); }
@@ -1156,13 +1134,14 @@ function loginAs(key, name, initials, isJefe){
   var engDef=ENGINEERS.find(function(e){ return e.key===key; });
   currentEngineer={key:key,name:name,initials:initials,isJefe:!!(isJefe||(engDef&&engDef.isJefe))};
   sessionStorage.setItem(STORE_ENG,JSON.stringify(currentEngineer));
-  if(currentEngineer.isJefe){ jefeFilter='all'; _loadAllEngineers(); }
+  if(currentEngineer.isJefe){ jefeFilter='all'; _loadAllEngineers();
+    setTimeout(function(){ if(_fbReady) firebaseLoadAll(); },400); }
   else{ ots=load(storeOTS())||[]; otData=load(storeDATA())||{}; if(!ots.length) _seedDemoData(); }
   var ls=document.getElementById('loginScreen');
   if(ls){ ls.removeAttribute('style'); ls.style.display='none'; }
   _updateEngBadge();
   _updateDashHeader();
-  if(_msalAccount) cloudLoad();
+  firebaseLoad(currentEngineer.key);
   _renderJefeUI(); renderDashboard(); renderPanel(); showView('Dashboard');
   _toast(currentEngineer.isJefe?'👑 Vista global, Alfredo':'▸ Bienvenido, '+name,'ok',2500);
 }
@@ -1270,46 +1249,10 @@ function setJefeFilter(k){
 
 
 // ── Estado de sync ──────────────────────────────────────
-let _msalApp = null, _msalAccount = null, _syncInProgress = false;
 
-function _msalReady(){
-  // Solo inicializa si el usuario configuró el CLIENT_ID
-  if(AZ_CONFIG.clientId === 'TU_CLIENT_ID_AQUI') return;
-  if(_msalApp) return;
-  try {
-    _msalApp = new msal.PublicClientApplication({
-      auth: {
-        clientId:    AZ_CONFIG.clientId,
-        authority:   'https://login.microsoftonline.com/' + AZ_CONFIG.tenantId,
-        redirectUri: AZ_CONFIG.redirectUri,
-      },
-      cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false },
-    });
-    // Si ya había sesión guardada, la restauramos
-    const saved = localStorage.getItem(STORE_AUTH);
-    if(saved){
-      const accs = _msalApp.getAllAccounts();
-      _msalAccount = accs[0] || null;
-      if(_msalAccount) _syncUpdateUI('connected');
-    }
-  } catch(e) { console.warn('MSAL init error:', e.message); }
-}
 
 // ── UI del botón de sync ────────────────────────────────
-function _syncUpdateUI(state, label){
-  const btn = document.getElementById('syncBtn');
-  const lbl = document.getElementById('syncLabel');
-  if(!btn || !lbl) return;
-  btn.className = 'sync-btn ' + (state||'');
-  const labels = {
-    '':          'Conectar OneDrive',
-    connected:   'OneDrive ✓',
-    syncing:     'Sincronizando…',
-    error:       'Error sync',
-    unconfigured:'Sin configurar',
-  };
-  lbl.textContent = label || labels[state] || 'OneDrive';
-}
+
 
 function _toast(msg, type='ok', ms=3000){
   const t = document.getElementById('syncToast');
@@ -1321,121 +1264,16 @@ function _toast(msg, type='ok', ms=3000){
 }
 
 // ── Login / Logout toggle ───────────────────────────────
-async function msalToggle(){
-  if(AZ_CONFIG.clientId === 'TU_CLIENT_ID_AQUI'){
-    _toast('⚙️ Configura CLIENT_ID y TENANT_ID en el código primero.', 'err', 5000);
-    return;
-  }
-  _msalReady();
-  if(!_msalApp) return;
 
-  if(_msalAccount){
-    // Cerrar sesión
-    await _msalApp.logoutPopup({ account: _msalAccount });
-    _msalAccount = null;
-    localStorage.removeItem(STORE_AUTH);
-    _syncUpdateUI('');
-    _toast('Sesión cerrada');
-    return;
-  }
-
-  try {
-    _syncUpdateUI('syncing', 'Iniciando sesión…');
-    const result = await _msalApp.loginPopup({ scopes: GRAPH_SCOPES });
-    _msalAccount = result.account;
-    localStorage.setItem(STORE_AUTH, JSON.stringify({ homeAccountId: _msalAccount.homeAccountId }));
-    _syncUpdateUI('connected');
-    _toast('✅ Conectado como ' + _msalAccount.username);
-    // Cargar datos desde OneDrive al conectar
-    await cloudLoad();
-  } catch(e) {
-    _syncUpdateUI('error', 'Error login');
-    _toast('❌ ' + (e.message || 'Error al conectar'), 'err', 5000);
-  }
-}
 
 // ── Obtener token silencioso ────────────────────────────
-async function _getToken(){
-  if(!_msalApp || !_msalAccount) return null;
-  try {
-    const r = await _msalApp.acquireTokenSilent({
-      scopes:  GRAPH_SCOPES,
-      account: _msalAccount,
-    });
-    return r.accessToken;
-  } catch(e) {
-    // Token expirado — re-autenticar con popup
-    try {
-      const r = await _msalApp.acquireTokenPopup({ scopes: GRAPH_SCOPES });
-      _msalAccount = r.account;
-      return r.accessToken;
-    } catch(e2) {
-      _msalAccount = null;
-      _syncUpdateUI('error');
-      return null;
-    }
-  }
-}
+
 
 // ── Guardar en OneDrive (Graph API) ────────────────────
-async function cloudSave(){
-  const token = await _getToken();
-  if(!token) return; // sin sesión: solo localStorage
-  if(_syncInProgress) return;
-  _syncInProgress = true;
-  _syncUpdateUI('syncing');
-  try {
-    const payload = JSON.stringify({ ots, otData, updatedAt: new Date().toISOString(), updatedBy: _msalAccount?.username });
-    const res = await fetch(
-      'https://graph.microsoft.com/v1.0/me/drive/root:/' + cloudFileName() + ':/content',
-      { method: 'PUT',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: payload }
-    );
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    _syncUpdateUI('connected');
-    _toast('☁️ Guardado en OneDrive');
-  } catch(e) {
-    _syncUpdateUI('error', 'Error al guardar');
-    _toast('❌ Error al guardar en OneDrive: ' + e.message, 'err', 5000);
-  } finally { _syncInProgress = false; }
-}
+
 
 // ── Cargar desde OneDrive (Graph API) ──────────────────
-async function cloudLoad(){
-  const token = await _getToken();
-  if(!token) return;
-  _syncUpdateUI('syncing', 'Cargando…');
-  try {
-    const res = await fetch(
-      'https://graph.microsoft.com/v1.0/me/drive/root:/' + cloudFileName() + ':/content',
-      { headers: { 'Authorization': 'Bearer ' + token } }
-    );
-    if(res.status === 404){
-      // Primera vez: archivo no existe, subir el estado local
-      _toast('☁️ Primera conexión — subiendo datos locales…');
-      await cloudSave();
-      return;
-    }
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if(data.ots && Array.isArray(data.ots)){
-      ots = data.ots;
-      otData = data.otData || {};
-      // Actualizar localStorage como caché
-      localStorage.setItem(STORE_OTS, JSON.stringify(ots));
-      localStorage.setItem(STORE_DATA, JSON.stringify(otData));
-      // Re-renderizar todo
-      renderDashboard(); renderPanel();
-      if(currentOT) openDetail(currentOT.id);
-      _syncUpdateUI('connected');
-      _toast('☁️ Datos cargados desde OneDrive · ' + (data.updatedBy||'') + ' · ' + (data.updatedAt ? new Date(data.updatedAt).toLocaleString('es-MX') : ''));
-    }
-  } catch(e) {
-    _syncUpdateUI('error', 'Error al cargar');
-    _toast('❌ Error al cargar desde OneDrive: ' + e.message, 'err', 5000);
-  }
-}
+
 
 /* ═══════════════════════════════
    DATA (localStorage — caché local)
@@ -1511,9 +1349,7 @@ function saveAll(){
     localStorage.setItem(storeOTS(),JSON.stringify(ots));
     localStorage.setItem(storeDATA(),JSON.stringify(otData));
   }
-  if(_msalAccount) cloudSave();
-  // Excel backup — no-blocking, solo si hay OneDrive
-  setTimeout(function(){ excelBackup(); }, 800);
+  firebaseSave();
 }
 function parseDate(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 function fmtDate(d){if(!d)return '—';return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});}
@@ -1906,181 +1742,149 @@ function exportJefeReport(){
 }
 
 
-/* ════════════════════════════════════════════════════════════════
-   EXCEL BACKUP — auto-sync a OneDrive en cada saveAll()
-   Columnas: todos los campos OT + datos de checklist (avance %)
-   Ingeniero → MCM-Backup-[key].xlsx  (su hoja)
-   Alfredo   → MCM-Backup-GLOBAL.xlsx (hoja por ingeniero + resumen)
-════════════════════════════════════════════════════════════════ */
 
-var _excelBusy = false; // evita llamadas solapadas
+
 
 /* Columnas visibles en el Excel — orden y encabezado */
-var XL_COLS = [
-  {key:'ot',              hdr:'OT'},
-  {key:'idNum',           hdr:'ID MCM'},
-  {key:'cliente',         hdr:'Cliente'},
-  {key:'detonacion',      hdr:'Fecha Detonación'},
-  {key:'limite',          hdr:'Fecha Límite'},
-  {key:'createdAt',       hdr:'Creada el'},
-  {key:'levantamiento',   hdr:'Levantamiento'},
-  {key:'levantamiento_fecha', hdr:'Lev. Fecha'},
-  {key:'levantamiento_hora',  hdr:'Lev. Hora'},
-  {key:'levantamiento_nota',  hdr:'Lev. Nota'},
-  {key:'diseno',          hdr:'Diseño'},
-  {key:'direccionamiento',hdr:'Direccionamiento'},
-  {key:'pyot',            hdr:'PYOT'},
-  {key:'equipamiento',    hdr:'Equipamiento'},
-  {key:'cpe',             hdr:'CPE'},
-  {key:'construccion',    hdr:'Construcción'},
-  {key:'implementacion',  hdr:'Implementación'},
-  {key:'entregado',       hdr:'Entregado'},
-  {key:'liberado',        hdr:'Liberado'},
-  {key:'_tareas_total',   hdr:'Tareas Total'},
-  {key:'_tareas_hechas',  hdr:'Tareas Completadas'},
-  {key:'_avance_pct',     hdr:'Avance %'},
-  {key:'_estado',         hdr:'Estado'},
-];
-
 /* Construye array de rows para una lista de OTs */
-function _xlRows(otList){
-  return otList.map(function(o){
-    var d    = otData[o.id] || {};
-    var tasks= d.tasks || [];
-    var done = tasks.filter(function(t){ return t.status==='Completado'; }).length;
-    var pct  = tasks.length ? Math.round(done/tasks.length*100) : 0;
-    var today= new Date();
-    var lim  = o.limite ? parseDate(o.limite) : null;
-    var tod  = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    var estado = pct===100 ? 'Completada'
-               : (lim && lim < tod) ? 'Vencida'
-               : (lim && diffDays(tod,lim)<=7) ? 'Por entregar'
-               : 'En proceso';
-    var row = {};
-    XL_COLS.forEach(function(c){
-      if(c.key==='_tareas_total')   { row[c.hdr] = tasks.length; }
-      else if(c.key==='_tareas_hechas') { row[c.hdr] = done; }
-      else if(c.key==='_avance_pct')    { row[c.hdr] = pct/100; }  // xlsx formatea como %
-      else if(c.key==='_estado')        { row[c.hdr] = estado; }
-      else { row[c.hdr] = o[c.key] || ''; }
-    });
-    return row;
-  });
-}
 
-/* Aplica estilos básicos a una hoja */
-function _xlStyleSheet(ws, nRows){
-  if(!ws['!cols']) ws['!cols'] = XL_COLS.map(function(c){
-    var w = c.hdr.length < 8 ? 12 : c.hdr.length < 16 ? 18 : 24;
-    return {wch: w};
-  });
-  // Freeze primera fila
-  ws['!freeze'] = {xSplit:0, ySplit:1, topLeftCell:'A2', activeCell:'A2', sqref:'A2'};
-}
+
+
 
 /* Genera Workbook para un ingeniero */
-function _xlBuildEngineer(key, engOTs, sheetName){
-  var wb  = XLSX.utils.book_new();
-  var rows= _xlRows(engOTs);
-  var ws  = rows.length
-    ? XLSX.utils.json_to_sheet(rows)
-    : XLSX.utils.aoa_to_sheet([XL_COLS.map(function(c){return c.hdr;})]);
-  _xlStyleSheet(ws, rows.length);
-  XLSX.utils.book_append_sheet(wb, ws, sheetName || 'OTs');
-  return wb;
-}
+
 
 /* Genera Workbook global (Alfredo): hoja por ingeniero + hoja Resumen */
-function _xlBuildGlobal(allOTs){
-  var wb = XLSX.utils.book_new();
-  var ENG_NAMES = {zarate:'F. Zarate', hernandez:'M. Hernández',
-                   ahumada:'F. Ahumada', cruz:'A. Cruz'};
-  var summaryRows = [];
 
-  FIELD_ENGINEERS.forEach(function(k){
-    var engOTs = allOTs.filter(function(o){ return (o._owner||'')===k; });
-    var rows   = _xlRows(engOTs);
-    var ws     = rows.length
-      ? XLSX.utils.json_to_sheet(rows)
-      : XLSX.utils.aoa_to_sheet([XL_COLS.map(function(c){return c.hdr;})]);
-    _xlStyleSheet(ws, rows.length);
-    XLSX.utils.book_append_sheet(wb, ws, ENG_NAMES[k] || k);
-
-    // Datos para resumen
-    var venc  = engOTs.filter(function(o){ return o.limite&&parseDate(o.limite)<new Date(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()); }).length;
-    var comp  = engOTs.filter(function(o){ return otPct(o.id)===100; }).length;
-    var avgPct= engOTs.length ? Math.round(engOTs.reduce(function(s,o){return s+otPct(o.id);},0)/engOTs.length) : 0;
-    summaryRows.push({
-      'Ingeniero':        ENG_NAMES[k]||k,
-      'Total OTs':        engOTs.length,
-      'Completadas':      comp,
-      'Vencidas':         venc,
-      'Avance Promedio %':avgPct/100,
-    });
-  });
-
-  // Hoja Resumen al frente
-  var wsSummary = XLSX.utils.json_to_sheet(summaryRows);
-  wsSummary['!cols'] = [{wch:20},{wch:12},{wch:14},{wch:12},{wch:18}];
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
-  // Mover Resumen al inicio
-  wb.SheetNames.unshift(wb.SheetNames.pop());
-  return wb;
-}
 
 /* Sube ArrayBuffer a OneDrive con Graph API */
-async function _xlUpload(token, fileName, arrayBuffer){
-  var url = 'https://graph.microsoft.com/v1.0/me/drive/root:/'
-            + encodeURIComponent(fileName) + ':/content';
-  var res = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      'Authorization': 'Bearer ' + token,
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    },
-    body: arrayBuffer,
-  });
-  if(!res.ok) throw new Error('HTTP ' + res.status + ' al subir ' + fileName);
-}
+
 
 /* Punto de entrada — llamado desde saveAll() */
-async function excelBackup(){
-  if(_excelBusy) return;
-  if(!_msalAccount) return;          // sin OneDrive conectado: no hacer nada
-  if(typeof XLSX === 'undefined') return; // SheetJS no cargó
-  _excelBusy = true;
+
+
+
+/* ════════════════════════════════════════════════════════════════
+   FIREBASE REALTIME DATABASE
+   Configura en console.firebase.google.com → tu proyecto →
+   Project settings → Web app → firebaseConfig
+════════════════════════════════════════════════════════════════ */
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyD_L1xBTyjqawNzTdA6D7DjuNcY0wyNiyw",
+  authDomain: "mcm-gestion.firebaseapp.com",
+  databaseURL: "https://mcm-gestion-default-rtdb.firebaseio.com",
+  projectId: "mcm-gestion",
+  storageBucket: "mcm-gestion.firebasestorage.app",
+  messagingSenderId: "655475924607",
+  appId: "1:655475924607:web:aef9c706417fb51b7ba94a",
+  measurementId: "G-5C2T691KXZ"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);var _fbApp=null, _fbDb=null, _fbReady=false, _fbListeners={};
+
+function _fbInit(){
+  if(_fbReady) return true;
+  if(FB_CONFIG.apiKey==='TU_API_KEY_AQUI') return false;
   try {
-    var token = await _getToken();
-    if(!token){ _excelBusy=false; return; }
+    _fbApp = firebase.apps.length ? firebase.app() : firebase.initializeApp(FB_CONFIG);
+    _fbDb  = firebase.database();
+    _fbReady = true;
+    return true;
+  } catch(e){ console.warn('[MCM Firebase] init:',e.message); return false; }
+}
 
-    if(currentEngineer && currentEngineer.isJefe){
-      /* ── Alfredo: backup global ── */
-      var savedFilter = jefeFilter;
-      _loadAllEngineers();
-      var snap = ots.slice();
-      // restaurar filtro
-      if(savedFilter!=='all') ots=snap.filter(function(o){return (o._owner||FIELD_ENGINEERS[0])===savedFilter;});
+function _fbBadge(state){
+  var dot=document.getElementById('fbDot'), lbl=document.getElementById('fbLabel');
+  if(!dot||!lbl) return;
+  var map={ok:['rgba(0,255,136,0.9)','var(--hacker)','Nube ✓'],
+           saving:['rgba(244,121,32,0.9)','var(--mcm-orange-lt)','Guardando…'],
+           error:['rgba(224,92,58,0.9)','#ff8060','Sin conexión'],
+           off:['rgba(0,255,136,0.3)','var(--text-dim)','Sin conexión']};
+  var v=map[state]||map.off;
+  dot.style.background=v[0]; lbl.style.color=v[1]; lbl.textContent=v[2];
+}
 
-      var wb  = _xlBuildGlobal(snap);
-      var buf = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-      await _xlUpload(token, 'MCM-Backup-GLOBAL.xlsx', buf);
-      _toast('📊 Backup Excel global guardado en OneDrive', 'ok', 3000);
-
-    } else if(currentEngineer){
-      /* ── Ingeniero: backup individual ── */
-      var key  = currentEngineer.key;
-      var name = currentEngineer.name.split(' ').slice(0,2).join(' ');
-      var wb   = _xlBuildEngineer(key, ots, name);
-      var buf  = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-      await _xlUpload(token, 'MCM-Backup-' + key + '.xlsx', buf);
-      _toast('📊 Backup Excel guardado en OneDrive', 'ok', 2500);
+function firebaseSave(){
+  if(!_fbInit()||!currentEngineer) return;
+  _fbBadge('saving');
+  try {
+    if(currentEngineer.isJefe){
+      var byOwner={};
+      FIELD_ENGINEERS.forEach(function(k){ byOwner[k]={ots:[],otData:{}}; });
+      ots.forEach(function(o){
+        var owner=o._owner||FIELD_ENGINEERS[0];
+        var clean={}; Object.keys(o).forEach(function(k){ if(k!=='_owner') clean[k]=o[k]; });
+        byOwner[owner].ots.push(clean);
+        if(otData[o.id]) byOwner[owner].otData[o.id]=otData[o.id];
+      });
+      FIELD_ENGINEERS.forEach(function(k){
+        _fbDb.ref('engineers/'+k).set({ots:byOwner[k].ots,otData:byOwner[k].otData,
+          updatedAt:new Date().toISOString(),updatedBy:'alfredo'});
+      });
+    } else {
+      _fbDb.ref('engineers/'+currentEngineer.key).set({
+        ots:ots, otData:otData,
+        updatedAt:new Date().toISOString(), updatedBy:currentEngineer.key
+      });
     }
-  } catch(e){
-    // Silencioso: el backup no debe interrumpir el flujo normal
-    console.warn('[MCM Excel Backup]', e.message);
-  } finally {
-    _excelBusy = false;
-  }
+    _fbBadge('ok'); _toast('☁️ Guardado en la nube','ok',2000);
+  } catch(e){ _fbBadge('error'); console.warn('[MCM Firebase] save:',e.message); }
+}
+
+function firebaseLoad(key){
+  if(!_fbInit()) return;
+  if(_fbListeners[key]){ _fbListeners[key](); delete _fbListeners[key]; }
+  _fbDb.ref('engineers/'+key).once('value', function(snap){
+    var data=snap.val();
+    if(!data||!data.ots) return;
+    ots=data.ots||[]; otData=data.otData||{};
+    localStorage.setItem('mcm_ots_v3_'+key, JSON.stringify(ots));
+    localStorage.setItem('mcm_otdata_v3_'+key, JSON.stringify(otData));
+    renderDashboard(); renderPanel();
+    if(currentOT) openDetail(currentOT.id);
+    _fbBadge('ok'); _toast('☁️ Datos cargados · '+(data.updatedBy||key),'ok',2500);
+  }, function(e){ _fbBadge('error'); console.warn('[MCM Firebase] load:',e.message); });
+
+  var ref=_fbDb.ref('engineers/'+key);
+  var cbk=ref.on('value',function(snap){
+    if(!currentEngineer||currentEngineer.key!==key) return;
+    var data=snap.val(); if(!data||!data.ots) return;
+    ots=data.ots||[]; otData=data.otData||{};
+    localStorage.setItem('mcm_ots_v3_'+key, JSON.stringify(ots));
+    localStorage.setItem('mcm_otdata_v3_'+key, JSON.stringify(otData));
+    renderDashboard(); renderPanel();
+  });
+  _fbListeners[key]=function(){ ref.off('value',cbk); };
+}
+
+function firebaseLoadAll(){
+  if(!_fbInit()) return;
+  var loaded=0, allOTs=[], allOtData={};
+  FIELD_ENGINEERS.forEach(function(k){
+    _fbDb.ref('engineers/'+k).once('value',function(snap){
+      var data=snap.val();
+      if(data&&data.ots){
+        data.ots.forEach(function(o){ allOTs.push(Object.assign({},o,{_owner:k})); });
+        Object.assign(allOtData,data.otData||{});
+      }
+      if(++loaded===FIELD_ENGINEERS.length){
+        ots=allOTs; otData=allOtData;
+        renderDashboard(); renderPanel();
+        if(currentOT) openDetail(currentOT.id);
+        _fbBadge('ok'); _toast('☁️ Equipo cargado desde la nube','ok',2500);
+      }
+    }, function(e){ _fbBadge('error'); });
+  });
 }
 
 function renderDashboard(){
@@ -2979,12 +2783,9 @@ function renderCalendar(){
 }
 
 /* INIT */
-_msalReady();
-if(AZ_CONFIG.clientId === 'TU_CLIENT_ID_AQUI') _syncUpdateUI('unconfigured', '⚙ Sin configurar');
 // Restaurar sesión si ya había una activa (recarga de página)
-// Si no hay sesión, la pantalla de login permanece visible
 if(!_restoreSession()){
-  showView('Dashboard'); // pre-renderizar detrás del login
+  showView('Dashboard');
 }
 </script>
 </body>
