@@ -656,6 +656,25 @@ body.view-panel{background:var(--bg);}
     </div>
   </div>
 
+
+  <!-- Firebase connection card -->
+  <div id="fbCardStatus" style="background:var(--dark-card);border:1px solid var(--dark-border);border-radius:14px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;transition:border-color 0.4s;">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="position:relative;width:44px;height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(0,255,136,0.2);"></div>
+        <div id="fbCardDot" style="width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.15);transition:background 0.4s,box-shadow 0.4s;"></div>
+      </div>
+      <div>
+        <div style="font-size:0.6rem;color:var(--text-dim);letter-spacing:2px;font-family:'Share Tech Mono',monospace;margin-bottom:3px;">BASE DE DATOS</div>
+        <div id="fbCardTxt" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--text-dim);">DESCONECTADO</div>
+        <div id="fbCardSub" style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);margin-top:2px;">Firebase inactivo</div>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div id="fbCardTime" style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);"></div>
+      <div style="font-size:0.6rem;color:var(--text-dim);margin-top:4px;font-family:'Share Tech Mono',monospace;opacity:0.6;">mcm-gestion · rtdb</div>
+    </div>
+  </div>
   <!-- ① KPIs COMPACTOS -->
   <div class="kpi-grid" id="kpiGrid">
     <div class="kpi-card orange">
@@ -1769,28 +1788,16 @@ function exportJefeReport(){
    Configura en console.firebase.google.com → tu proyecto →
    Project settings → Web app → firebaseConfig
 ════════════════════════════════════════════════════════════════ */
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyD_L1xBTyjqawNzTdA6D7DjuNcY0wyNiyw",
-  authDomain: "mcm-gestion.firebaseapp.com",
-  databaseURL: "https://mcm-gestion-default-rtdb.firebaseio.com",
-  projectId: "mcm-gestion",
-  storageBucket: "mcm-gestion.firebasestorage.app",
+var FB_CONFIG = {
+  apiKey:            "AIzaSyD_L1xBTyjqawNzTdA6D7DjuNcY0wyNiyw",
+  authDomain:        "mcm-gestion.firebaseapp.com",
+  databaseURL:       "https://mcm-gestion-default-rtdb.firebaseio.com",
+  projectId:         "mcm-gestion",
+  storageBucket:     "mcm-gestion.firebasestorage.app",
   messagingSenderId: "655475924607",
-  appId: "1:655475924607:web:aef9c706417fb51b7ba94a",
-  measurementId: "G-5C2T691KXZ"
+  appId:             "1:655475924607:web:aef9c706417fb51b7ba94a"
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);var _fbApp=null, _fbDb=null, _fbReady=false, _fbListeners={};
+var _fbApp=null, _fbDb=null, _fbReady=false, _fbListeners={};
 
 function _fbInit(){
   if(_fbReady) return true;
@@ -1799,19 +1806,59 @@ function _fbInit(){
     _fbApp = firebase.apps.length ? firebase.app() : firebase.initializeApp(FB_CONFIG);
     _fbDb  = firebase.database();
     _fbReady = true;
+    setTimeout(_fbStartConnectionMonitor, 500);
     return true;
   } catch(e){ console.warn('[MCM Firebase] init:',e.message); return false; }
 }
 
 function _fbBadge(state){
   var dot=document.getElementById('fbDot'), lbl=document.getElementById('fbLabel');
-  if(!dot||!lbl) return;
-  var map={ok:['rgba(0,255,136,0.9)','var(--hacker)','Nube ✓'],
-           saving:['rgba(244,121,32,0.9)','var(--mcm-orange-lt)','Guardando…'],
-           error:['rgba(224,92,58,0.9)','#ff8060','Sin conexión'],
-           off:['rgba(0,255,136,0.3)','var(--text-dim)','Sin conexión']};
-  var v=map[state]||map.off;
-  dot.style.background=v[0]; lbl.style.color=v[1]; lbl.textContent=v[2];
+  var states={
+    ok:     {bg:'rgba(0,255,136,0.9)', col:'var(--hacker)',        txt:'Nube ✓'},
+    saving: {bg:'rgba(244,121,32,0.9)',col:'var(--mcm-orange-lt)', txt:'Guardando…'},
+    error:  {bg:'rgba(224,92,58,0.9)', col:'#ff8060',              txt:'Sin conexión'},
+    off:    {bg:'rgba(0,255,136,0.3)', col:'var(--text-dim)',       txt:'Sin conexión'}
+  };
+  var v=states[state]||states.off;
+  if(dot){dot.style.background=v.bg;}
+  if(lbl){lbl.style.color=v.col; lbl.textContent=v.txt;}
+  _fbUpdateCard(state);
+}
+
+function _fbUpdateCard(state){
+  var card=document.getElementById('fbCardStatus');
+  var cdot=document.getElementById('fbCardDot');
+  var ctxt=document.getElementById('fbCardTxt');
+  var csub=document.getElementById('fbCardSub');
+  var ctime=document.getElementById('fbCardTime');
+  if(!card) return;
+  var now=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(state==='ok'){
+    cdot.style.background='#00ff88'; cdot.style.boxShadow='0 0 8px rgba(0,255,136,0.6)';
+    ctxt.textContent='CONECTADO'; ctxt.style.color='var(--hacker)';
+    csub.textContent='Firebase activo'; card.style.borderColor='rgba(0,255,136,0.3)';
+    if(ctime) ctime.textContent='Última sync: '+now;
+  } else if(state==='saving'){
+    cdot.style.background='#f47920'; cdot.style.boxShadow='0 0 8px rgba(244,121,32,0.6)';
+    ctxt.textContent='SINCRONIZANDO'; ctxt.style.color='var(--mcm-orange-lt)';
+    csub.textContent='Guardando datos…'; card.style.borderColor='rgba(244,121,32,0.3)';
+    if(ctime) ctime.textContent='Última sync: '+now;
+  } else if(state==='error'){
+    cdot.style.background='#e05c3a'; cdot.style.boxShadow='none';
+    ctxt.textContent='SIN CONEXIÓN'; ctxt.style.color='#ff8060';
+    csub.textContent='Verificar internet'; card.style.borderColor='rgba(224,92,58,0.3)';
+  } else {
+    cdot.style.background='rgba(255,255,255,0.15)'; cdot.style.boxShadow='none';
+    ctxt.textContent='DESCONECTADO'; ctxt.style.color='var(--text-dim)';
+    csub.textContent='Firebase inactivo'; card.style.borderColor='var(--dark-border)';
+  }
+}
+
+function _fbStartConnectionMonitor(){
+  if(!_fbDb) return;
+  _fbDb.ref('.info/connected').on('value',function(snap){
+    _fbBadge(snap.val() ? 'ok' : 'error');
+  });
 }
 
 function firebaseSave(){
@@ -1888,6 +1935,7 @@ function firebaseLoadAll(){
 }
 
 function renderDashboard(){
+  if(!_fbReady && FB_CONFIG.apiKey!=='TU_API_KEY_AQUI') _fbInit();
   const now=new Date(), tod=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const total=ots.length;
   const completas=ots.filter(o=>otPct(o.id)===100&&(otData[o.id]?.tasks?.length>0)).length;
