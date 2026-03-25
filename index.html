@@ -1154,19 +1154,21 @@ function loginAs(key, name, initials, isJefe){
   currentEngineer={key:key,name:name,initials:initials,isJefe:!!(isJefe||(engDef&&engDef.isJefe))};
   sessionStorage.setItem(STORE_ENG,JSON.stringify(currentEngineer));
   if(currentEngineer.isJefe){ jefeFilter='all'; _loadAllEngineers();
-    setTimeout(function(){ if(_fbReady) firebaseLoadAll(); },400); }
+    // Llamar directamente después de _fbInit
+    _fbInit(); firebaseLoadAll(); }
   else{ ots=load(storeOTS())||[]; otData=load(storeDATA())||{}; if(!ots.length) _seedDemoData(); }
   var ls=document.getElementById('loginScreen');
   if(ls){ ls.removeAttribute('style'); ls.style.display='none'; }
   _updateEngBadge();
   _updateDashHeader();
-  firebaseLoad(currentEngineer.key);
+  // Solo cargar Firebase del ingeniero si no es jefe
+  if(!currentEngineer.isJefe) firebaseLoad(currentEngineer.key);
   _renderJefeUI(); renderDashboard(); renderPanel(); showView('Dashboard');
   _toast(currentEngineer.isJefe?'👑 Vista global, Alfredo':'▸ Bienvenido, '+name,'ok',2500);
 }
 
 function switchEngineer(){
-  currentEngineer=null; currentOT=null; ots=[]; otData={}; jefeFilter='all';
+  currentEngineer=null; currentOT=null; ots=[]; otData={}; jefeFilter='all'; _fbPaused=false;
   sessionStorage.removeItem(STORE_ENG);
   var badge=document.getElementById('engBadge'); if(badge) badge.style.display='none';
   var fsb=document.getElementById('floatSaveBtn'); if(fsb) fsb.classList.remove('visible','saved');
@@ -1367,6 +1369,9 @@ function saveAll(){
   } else {
     localStorage.setItem(storeOTS(),JSON.stringify(ots));
     localStorage.setItem(storeDATA(),JSON.stringify(otData));
+    // Guardar metadata de timestamp para comparación con Firebase
+    localStorage.setItem('mcm_meta_v3_'+(currentEngineer?currentEngineer.key:'shared'),
+      JSON.stringify({updatedAt:new Date().toISOString()}));
   }
   firebaseSave();
 }
@@ -1798,6 +1803,7 @@ var FB_CONFIG = {
   appId:             "1:655475924607:web:aef9c706417fb51b7ba94a"
 };
 var _fbApp=null, _fbDb=null, _fbReady=false, _fbListeners={};
+var _fbPaused=false; // pausa el listener en tiempo real durante saves
 
 function _fbInit(){
   if(_fbReady) return true;
@@ -1864,6 +1870,8 @@ function _fbStartConnectionMonitor(){
 function firebaseSave(){
   if(!_fbInit()||!currentEngineer) return;
   _fbBadge('saving');
+  _fbPaused = true; // pausar listener para evitar race condition
+  var promises = [];
   try {
     if(currentEngineer.isJefe){
       var byOwner={};
@@ -1875,38 +1883,77 @@ function firebaseSave(){
         if(otData[o.id]) byOwner[owner].otData[o.id]=otData[o.id];
       });
       FIELD_ENGINEERS.forEach(function(k){
-        _fbDb.ref('engineers/'+k).set({ots:byOwner[k].ots,otData:byOwner[k].otData,
-          updatedAt:new Date().toISOString(),updatedBy:'alfredo'});
+        promises.push(_fbDb.ref('engineers/'+k).set({
+          ots:byOwner[k].ots, otData:byOwner[k].otData,
+          updatedAt:new Date().toISOString(), updatedBy:'alfredo'
+        }));
       });
     } else {
-      _fbDb.ref('engineers/'+currentEngineer.key).set({
-        ots:ots, otData:otData,
-        updatedAt:new Date().toISOString(), updatedBy:currentEngineer.key
-      });
+      // Guardar snapshot de los datos actuales (no referencia)
+      var otsSnapshot = JSON.parse(JSON.stringify(ots));
+      var otDataSnapshot = JSON.parse(JSON.stringify(otData));
+      promises.push(_fbDb.ref('engineers/'+currentEngineer.key).set({
+        ots: otsSnapshot, otData: otDataSnapshot,
+        updatedAt: new Date().toISOString(), updatedBy: currentEngineer.key
+      }));
     }
-    _fbBadge('ok'); _toast('☁️ Guardado en la nube','ok',2000);
-  } catch(e){ _fbBadge('error'); console.warn('[MCM Firebase] save:',e.message); }
+    Promise.all(promises).then(function(){
+      _fbBadge('ok');
+      _toast('☁️ Guardado en la nube','ok',2000);
+      // Reanudar listener DESPUÉS de que el write completó
+      setTimeout(function(){ _fbPaused = false; }, 1500);
+    }).catch(function(e){
+      _fbBadge('error');
+      _fbPaused = false;
+      console.warn('[MCM Firebase] save error:',e.message);
+      _toast('❌ Error al guardar: '+e.message,'err',4000);
+    });
+  } catch(e){
+    _fbBadge('error');
+    _fbPaused = false;
+    console.warn('[MCM Firebase] save:',e.message);
+  }
 }
 
 function firebaseLoad(key){
   if(!_fbInit()) return;
+  // Cancelar listener previo
   if(_fbListeners[key]){ _fbListeners[key](); delete _fbListeners[key]; }
+
+  // Carga inicial: solo una vez (once), no sobreescribir si hay datos locales más recientes
   _fbDb.ref('engineers/'+key).once('value', function(snap){
     var data=snap.val();
-    if(!data||!data.ots) return;
-    ots=data.ots||[]; otData=data.otData||{};
-    localStorage.setItem('mcm_ots_v3_'+key, JSON.stringify(ots));
-    localStorage.setItem('mcm_otdata_v3_'+key, JSON.stringify(otData));
-    renderDashboard(); renderPanel();
-    if(currentOT) openDetail(currentOT.id);
-    _fbBadge('ok'); _toast('☁️ Datos cargados · '+(data.updatedBy||key),'ok',2500);
+    if(!data||!data.ots||!data.ots.length) return; // sin datos remotos, usar local
+    // Comparar fechas: usar remoto solo si es más reciente
+    var localRaw = localStorage.getItem('mcm_ots_v3_'+key);
+    var localOts = localRaw ? JSON.parse(localRaw) : [];
+    var remoteDate = data.updatedAt ? new Date(data.updatedAt).getTime() : 0;
+    var localDate  = 0;
+    try {
+      var localMeta = localStorage.getItem('mcm_meta_v3_'+key);
+      if(localMeta) localDate = new Date(JSON.parse(localMeta).updatedAt||0).getTime();
+    } catch(e){}
+    // Cargar remoto (tiene fecha o hay más OTs)
+    if(remoteDate >= localDate || data.ots.length >= localOts.length){
+      ots=data.ots; otData=data.otData||{};
+      localStorage.setItem('mcm_ots_v3_'+key, JSON.stringify(ots));
+      localStorage.setItem('mcm_otdata_v3_'+key, JSON.stringify(otData));
+      renderDashboard(); renderPanel();
+      if(currentOT) openDetail(currentOT.id);
+    }
+    _fbBadge('ok');
+    _toast('☁️ Sincronizado · '+(data.updatedBy||key),'ok',2500);
   }, function(e){ _fbBadge('error'); console.warn('[MCM Firebase] load:',e.message); });
 
+  // Listener en tiempo real: ignorar si estamos guardando (_fbPaused)
   var ref=_fbDb.ref('engineers/'+key);
   var cbk=ref.on('value',function(snap){
+    if(_fbPaused) return; // evitar race condition durante saves
     if(!currentEngineer||currentEngineer.key!==key) return;
     var data=snap.val(); if(!data||!data.ots) return;
-    ots=data.ots||[]; otData=data.otData||{};
+    // Solo aplicar si los datos vienen de otro usuario (no del mismo)
+    if(data.updatedBy===key && data.updatedBy===currentEngineer.key) return;
+    ots=data.ots; otData=data.otData||{};
     localStorage.setItem('mcm_ots_v3_'+key, JSON.stringify(ots));
     localStorage.setItem('mcm_otdata_v3_'+key, JSON.stringify(otData));
     renderDashboard(); renderPanel();
@@ -2610,7 +2657,23 @@ function saveOTModal(){
 }
 
 function duplicateOT(id){const src=ots.find(o=>o.id===id);if(!src)return;const srcData=otData[id]||{tasks:[]};const newId=uid();ots.push({...src,id:newId,ot:src.ot+' (copia)',createdAt:today()});otData[newId]={tasks:srcData.tasks.map(t=>({...t,id:uid(),status:'Pendiente',date:today()}))};saveAll();renderPanel();}
-function deleteOT(id){const ot=ots.find(o=>o.id===id);if(!confirm(`¿Eliminar "${ot?.ot}"?`))return;ots=ots.filter(o=>o.id!==id);delete otData[id];saveAll();renderPanel();}
+function deleteOT(id){
+  const ot=ots.find(o=>o.id===id);
+  if(!confirm('¿Eliminar "'+(ot?.ot||id)+'"?')) return;
+  ots=ots.filter(o=>o.id!==id);
+  delete otData[id];
+  // Guardar en localStorage primero (sincrono)
+  if(currentEngineer && !currentEngineer.isJefe){
+    localStorage.setItem(storeOTS(),JSON.stringify(ots));
+    localStorage.setItem(storeDATA(),JSON.stringify(otData));
+    localStorage.setItem('mcm_meta_v3_'+currentEngineer.key,
+      JSON.stringify({updatedAt:new Date().toISOString()}));
+  }
+  saveAll();
+  // Cerrar detalle si estaba abierto
+  if(currentOT&&currentOT.id===id){ currentOT=null; showView('Panel'); }
+  renderPanel(); renderDashboard();
+}
 
 /* ═══════════════════════════════
    TASKS
