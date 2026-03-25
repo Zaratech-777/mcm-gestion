@@ -1118,9 +1118,12 @@ var currentEngineer = null; // declarado temprano para evitar TDZ
 function updateTime(){
   const n=new Date();
   const t=n.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  document.getElementById('clock').textContent=t;
-  document.getElementById('dashTime').textContent=t;
-  document.getElementById('dashDate').textContent=n.toLocaleDateString('es-MX',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+    var _el_clock=document.getElementById('clock');
+  if(_el_clock) _el_clock.textContent=t;
+  var _dt=document.getElementById('dashTime');
+  var _dd=document.getElementById('dashDate');
+  if(_dt) _dt.textContent=t;
+  if(_dd) _dd.textContent=n.toLocaleDateString('es-MX',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 }
 updateTime(); setInterval(updateTime,1000);
 
@@ -1128,7 +1131,8 @@ function greet(){
   const h=new Date().getHours();
   const saludo=h<12?'BUENOS DÍAS':h<18?'BUENAS TARDES':'BUENAS NOCHES';
   var _engDisp=currentEngineer?(currentEngineer.isJefe?'ALFREDO — JEFE DE EQUIPO':'ING. '+currentEngineer.name.toUpperCase()):'SISTEMA MCM LISTO';
-  document.getElementById('dashGreeting').textContent='▸ '+saludo+' · '+_engDisp;
+  var _dg=document.getElementById('dashGreeting');
+  if(_dg) _dg.textContent='▸ '+saludo+' · '+_engDisp;
 }
 greet();
 
@@ -1441,7 +1445,7 @@ function animateCount(el, target, suffix='', duration=1200){
   const timer=setInterval(()=>{
     start+=step;
     if(start>=target){start=target;clearInterval(timer);}
-    el.textContent=Math.round(start)+suffix;
+    if(el) el.textContent=Math.round(start)+suffix;
   },duration/60);
 }
 
@@ -1818,7 +1822,8 @@ function _fbInit(){
 }
 
 function _fbBadge(state){
-  var dot=document.getElementById('fbDot'), lbl=document.getElementById('fbLabel');
+  var dot=document.getElementById('fbDot');
+  var lbl=document.getElementById('fbLabel');
   var states={
     ok:     {bg:'rgba(0,255,136,0.9)', col:'var(--hacker)',        txt:'Nube ✓'},
     saving: {bg:'rgba(244,121,32,0.9)',col:'var(--mcm-orange-lt)', txt:'Guardando…'},
@@ -1833,11 +1838,12 @@ function _fbBadge(state){
 
 function _fbUpdateCard(state){
   var card=document.getElementById('fbCardStatus');
+  if(!card) return; // card solo existe en viewDashboard
   var cdot=document.getElementById('fbCardDot');
   var ctxt=document.getElementById('fbCardTxt');
   var csub=document.getElementById('fbCardSub');
   var ctime=document.getElementById('fbCardTime');
-  if(!card) return;
+  if(!cdot||!ctxt||!csub) return; // elementos internos no encontrados
   var now=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   if(state==='ok'){
     cdot.style.background='#00ff88'; cdot.style.boxShadow='0 0 8px rgba(0,255,136,0.6)';
@@ -2117,7 +2123,7 @@ function renderDashboard(){
     {label:'Vencidas',val:vencidas,color:'#e05c3a'},
     {label:'Pendientes',val:Math.max(0,total-activas2-completas-vencidas),color:'#1a6fd4'},
   ];
-  document.getElementById('donutTotal').textContent=total;
+  var _g_donutTotal=document.getElementById('donutTotal'); if(_g_donutTotal) _g_donutTotal.textContent=total;
   const circ=2*Math.PI*50;
   let offset=0;
   const segIds=['donutSeg1','donutSeg2','donutSeg3','donutSeg4'];
