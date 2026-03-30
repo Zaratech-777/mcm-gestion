@@ -406,13 +406,7 @@ body.view-panel{background:var(--bg);}
 @keyframes floatPop{0%{transform:translateY(20px) scale(0.9);opacity:0;}100%{transform:translateY(0) scale(1);opacity:1;}}
 .float-save.visible{animation:floatPop 0.22s ease forwards;}
 
-/* ── SHAREPOINT SYNC ── */
 
-.sync-btn:hover{border-color:var(--mcm-orange);color:var(--mcm-orange);}
-.sync-btn.connected{border-color:rgba(0,255,136,0.35);color:var(--hacker);}
-.sync-btn.syncing{border-color:rgba(109,179,255,0.4);color:#6db3ff;animation:syncPulse 1s ease-in-out infinite;}
-.sync-btn.error{border-color:rgba(224,92,58,0.4);color:#ff8060;}
-@keyframes syncPulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
 
 .sync-toast{position:fixed;bottom:80px;right:28px;z-index:999;background:var(--dark-card2);border:1px solid var(--dark-border2);border-radius:10px;padding:10px 16px;font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:var(--text-dim);transition:all 0.3s;opacity:0;pointer-events:none;max-width:260px;}
 .sync-toast.show{opacity:1;}
@@ -533,8 +527,6 @@ body.view-panel{background:var(--bg);}
 #issuesTbody td{padding:8px 8px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.77rem;color:var(--text);vertical-align:middle;}
 
 </style>
-  <!-- Microsoft Authentication Library -->
-  
 
 </head>
 <body>
@@ -648,31 +640,10 @@ body.view-panel{background:var(--bg);}
           <div style="font-size:0.84rem;font-weight:600;color:var(--mcm-orange-lt);" id="dashEngName">—</div>
         </div>
       </div>
-<div id="fbStatus" style="display:flex;align-items:center;gap:6px;background:rgba(0,255,136,0.07);border:1px solid rgba(0,255,136,0.2);border-radius:8px;padding:6px 12px;"><div id="fbDot" style="width:7px;height:7px;border-radius:50%;background:rgba(0,255,136,0.3);transition:background 0.4s;flex-shrink:0;"></div><span id="fbLabel" style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text-dim);">Sin conexión</span></div>
       <div style="text-align:right;">
         <div id="dashDate" style="font-size:0.76rem;color:rgba(255,255,255,0.55);"></div>
         <div id="dashTime" style="font-family:'Share Tech Mono',monospace;font-size:0.72rem;color:rgba(0,255,136,0.7);margin-top:2px;"></div>
       </div>
-    </div>
-  </div>
-
-
-  <!-- Firebase connection card -->
-  <div id="fbCardStatus" style="background:var(--dark-card);border:1px solid var(--dark-border);border-radius:14px;padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;transition:border-color 0.4s;">
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div style="position:relative;width:44px;height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-        <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(0,255,136,0.2);"></div>
-        <div id="fbCardDot" style="width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.15);transition:background 0.4s,box-shadow 0.4s;"></div>
-      </div>
-      <div>
-        <div style="font-size:0.6rem;color:var(--text-dim);letter-spacing:2px;font-family:'Share Tech Mono',monospace;margin-bottom:3px;">BASE DE DATOS</div>
-        <div id="fbCardTxt" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--text-dim);">DESCONECTADO</div>
-        <div id="fbCardSub" style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);margin-top:2px;">Firebase inactivo</div>
-      </div>
-    </div>
-    <div style="text-align:right;">
-      <div id="fbCardTime" style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);"></div>
-      <div style="font-size:0.6rem;color:var(--text-dim);margin-top:4px;font-family:'Share Tech Mono',monospace;opacity:0.6;">mcm-gestion · rtdb</div>
     </div>
   </div>
   <!-- ① KPIs COMPACTOS -->
@@ -972,6 +943,16 @@ body.view-panel{background:var(--bg);}
       <div class="form-field"><label>OT</label><input class="form-input" id="fOt" type="text" placeholder="Ej. OT-401715"/></div>
       <div class="form-field"><label>ID</label><input class="form-input" id="fId" type="text" placeholder="Ej. MCM-001"/></div>
       <div class="form-field full"><label>Cliente</label><input class="form-input" id="fCliente" type="text" placeholder="Nombre del cliente o empresa"/></div>
+      <!-- Campo solo visible para Alfredo (Jefe) -->
+      <div class="form-field full" id="fAsignarWrap" style="display:none;">
+        <label>👷 Asignar a Ingeniero</label>
+        <select class="form-select" id="fAsignarA" style="border-color:rgba(244,121,32,0.5);">
+          <option value="zarate">Fernando Zarate</option>
+          <option value="hernandez">Misael Hernández</option>
+          <option value="ahumada">Fernando Ahumada</option>
+          <option value="cruz">Axel Gonzalez</option>
+        </select>
+      </div>
     </div>
     <div class="modal-section-title">Fechas</div>
     <div class="form-grid">
@@ -1040,8 +1021,12 @@ body.view-panel{background:var(--bg);}
     <div class="modal-section-title">Tareas iniciales</div>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="fUseTpl" checked style="accent-color:var(--mcm-orange);width:16px;height:16px;"/><span style="font-size:0.84rem;color:#0d1f3c;">Usar plantilla de tareas predeterminada</span></label>
   </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-app-compat.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-database-compat.min.js"></script>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    <button class="btn" id="modalSaveBtn" onclick="saveOTModal()">Crear OT</button>
+  </div>
+</div>
+</div>
 <script>
 var currentEngineer = null; // declarado temprano para evitar TDZ
 /* ═══════════════════════════════
@@ -1139,8 +1124,8 @@ greet();
 
 const STORE_ENG     = 'mcm_engineer';        // ingeniero activo en sesión
 // Claves dinámicas por ingeniero — cada quien tiene sus propios datos
-function storeOTS()  { return 'mcm_ots_v3_'  + (currentEngineer?.key||'shared'); }
-function storeDATA() { return 'mcm_otdata_v3_'+ (currentEngineer?.key||'shared'); }
+function storeOTS()  { return 'mcm_ots_v3_'  + ((currentEngineer&&currentEngineer.key)||'shared'); }
+function storeDATA() { return 'mcm_otdata_v3_'+ ((currentEngineer&&currentEngineer.key)||'shared'); }
 /* ══════════════════════════════════════════════════════
    ENGINEER SESSION MANAGEMENT
 ══════════════════════════════════════════════════════ */
@@ -1157,23 +1142,18 @@ function loginAs(key, name, initials, isJefe){
   var engDef=ENGINEERS.find(function(e){ return e.key===key; });
   currentEngineer={key:key,name:name,initials:initials,isJefe:!!(isJefe||(engDef&&engDef.isJefe))};
   sessionStorage.setItem(STORE_ENG,JSON.stringify(currentEngineer));
-  if(currentEngineer.isJefe){ jefeFilter='all'; _loadAllEngineers();
-    // Llamar directamente después de _fbInit
-    _fbInit(); firebaseLoadAll(); }
-  else{ ots=load(storeOTS())||[]; otData=load(storeDATA())||{}; if(!ots.length) _seedDemoData(); }
+  if(currentEngineer.isJefe){ jefeFilter='all'; _loadAllEngineers(); }
+  else{ ots=load(storeOTS())||[]; otData=load(storeDATA())||{}; if(!ots.length && !localStorage.getItem('mcm_cleared_'+(currentEngineer?currentEngineer.key:''))) _seedDemoData(); }
   var ls=document.getElementById('loginScreen');
   if(ls){ ls.removeAttribute('style'); ls.style.display='none'; }
   _updateEngBadge();
   _updateDashHeader();
-  // Solo cargar Firebase del ingeniero si no es jefe
-  if(!currentEngineer.isJefe) firebaseLoad(currentEngineer.key);
   _renderJefeUI(); renderDashboard(); renderPanel(); showView('Dashboard');
   _toast(currentEngineer.isJefe?'👑 Vista global, Alfredo':'▸ Bienvenido, '+name,'ok',2500);
 }
 
 function switchEngineer(){
-  currentEngineer=null; currentOT=null; ots=[]; otData={}; jefeFilter='all'; _fbPaused=false;
-  sessionStorage.removeItem(STORE_ENG);
+  currentEngineer=null; currentOT=null; ots=[]; otData={}; jefeFilter='all'; sessionStorage.removeItem(STORE_ENG);
   var badge=document.getElementById('engBadge'); if(badge) badge.style.display='none';
   var fsb=document.getElementById('floatSaveBtn'); if(fsb) fsb.classList.remove('visible','saved');
   _renderJefeUI();
@@ -1192,7 +1172,7 @@ function _updateEngBadge(){
   const name   = document.getElementById('engBadgeName');
   if(badge)  badge.style.display  = 'flex';
   if(avatar) avatar.textContent   = currentEngineer.initials;
-  if(name)   name.textContent     = currentEngineer.name.split(' ')[0] + ' ' + currentEngineer.name.split(' ')[1];
+  if(name)   name.textContent     = currentEngineer.name.split(' ').slice(0,2).join(' ');
 }
 
 function _restoreSession(){
@@ -1271,14 +1251,6 @@ function setJefeFilter(k){
   _renderJefeUI(); renderDashboard(); renderPanel(); renderCalendar();
 }
 
-
-
-// ── Estado de sync ──────────────────────────────────────
-
-
-// ── UI del botón de sync ────────────────────────────────
-
-
 function _toast(msg, type='ok', ms=3000){
   const t = document.getElementById('syncToast');
   if(!t) return;
@@ -1287,17 +1259,6 @@ function _toast(msg, type='ok', ms=3000){
   clearTimeout(t._to);
   t._to = setTimeout(() => { t.className = 'sync-toast'; }, ms);
 }
-
-// ── Login / Logout toggle ───────────────────────────────
-
-
-// ── Obtener token silencioso ────────────────────────────
-
-
-// ── Guardar en OneDrive (Graph API) ────────────────────
-
-
-// ── Cargar desde OneDrive (Graph API) ──────────────────
 
 
 /* ═══════════════════════════════
@@ -1341,16 +1302,7 @@ function wfColor(val){
 }
 
 let ots=[], otData={}, currentOT=null, taskFilter='all', editingOTId=null, prevView='Dashboard';
-
-if(!ots.length){
-  const d=today();
-  const demo={id:uid(),ot:'OT-401714',cliente:'Morysan Comercial',idNum:'MCM-001',detonacion:'2025-02-01',limite:'2025-03-15',levantamiento:'Realizada',levantamiento_fecha:'2025-02-05',levantamiento_hora:'09:00',levantamiento_nota:'Levantamiento sin observaciones',diseno:'Generado',direccionamiento:'Folio generado',pyot:'En Almacén',construccion:'En proceso',entregado:'',liberado:'',createdAt:d};
-  const demo2={id:uid(),ot:'OT-401715',cliente:'Empresa ABC',idNum:'MCM-002',detonacion:'2025-02-10',limite:'2025-04-01',levantamiento:'Agendada',levantamiento_fecha:'2026-03-10',levantamiento_hora:'11:30',levantamiento_nota:'Coordinar con jefe de obra',diseno:'Solicitado',direccionamiento:'',pyot:'',construccion:'',entregado:'',liberado:'',createdAt:d};
-  ots.push(demo,demo2);
-  otData[demo.id]={tasks:TPL_TASKS.map((t,i)=>({id:i+1,...t,status:i<3?'Completado':i<5?'En Proceso':'Pendiente',date:d}))};
-  otData[demo2.id]={tasks:TPL_TASKS.map((t,i)=>({id:i+1,...t,status:'Pendiente',date:d}))};
-  saveAll();
-}
+// Nota: las OTs demo para cada ingeniero se crean via _seedDemoData() al hacer login por primera vez.
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function today(){return new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});}
@@ -1368,16 +1320,12 @@ function saveAll(){
     });
     FIELD_ENGINEERS.forEach(function(k){
       localStorage.setItem('mcm_ots_v3_'+k,JSON.stringify(byOwner[k].ots));
-      localStorage.setItem('mcm_otdata_v3_'+k,JSON.stringify(byOwner[k].otData));
+      localStorage.setItem('mcm_otdata_v3_'+k,JSON.stringify(byOwner[k].otData)); // FIX: timestamp para jefe
     });
   } else {
     localStorage.setItem(storeOTS(),JSON.stringify(ots));
     localStorage.setItem(storeDATA(),JSON.stringify(otData));
-    // Guardar metadata de timestamp para comparación con Firebase
-    localStorage.setItem('mcm_meta_v3_'+(currentEngineer?currentEngineer.key:'shared'),
-      JSON.stringify({updatedAt:new Date().toISOString()}));
   }
-  firebaseSave();
 }
 function parseDate(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 function fmtDate(d){if(!d)return '—';return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});}
@@ -1770,225 +1718,7 @@ function exportJefeReport(){
 }
 
 
-
-
-
-/* Columnas visibles en el Excel — orden y encabezado */
-/* Construye array de rows para una lista de OTs */
-
-
-
-
-/* Genera Workbook para un ingeniero */
-
-
-/* Genera Workbook global (Alfredo): hoja por ingeniero + hoja Resumen */
-
-
-/* Sube ArrayBuffer a OneDrive con Graph API */
-
-
-/* Punto de entrada — llamado desde saveAll() */
-
-
-
-/* ════════════════════════════════════════════════════════════════
-   FIREBASE REALTIME DATABASE
-   Configura en console.firebase.google.com → tu proyecto →
-   Project settings → Web app → firebaseConfig
-════════════════════════════════════════════════════════════════ */
-var FB_CONFIG = {
-  apiKey:            "AIzaSyD_L1xBTyjqawNzTdA6D7DjuNcY0wyNiyw",
-  authDomain:        "mcm-gestion.firebaseapp.com",
-  databaseURL:       "https://mcm-gestion-default-rtdb.firebaseio.com",
-  projectId:         "mcm-gestion",
-  storageBucket:     "mcm-gestion.firebasestorage.app",
-  messagingSenderId: "655475924607",
-  appId:             "1:655475924607:web:aef9c706417fb51b7ba94a"
-};
-var _fbApp=null, _fbDb=null, _fbReady=false, _fbListeners={};
-var _fbPaused=false; // pausa el listener en tiempo real durante saves
-
-function _fbInit(){
-  if(_fbReady) return true;
-  if(FB_CONFIG.apiKey==='TU_API_KEY_AQUI') return false;
-  try {
-    _fbApp = firebase.apps.length ? firebase.app() : firebase.initializeApp(FB_CONFIG);
-    _fbDb  = firebase.database();
-    _fbReady = true;
-    setTimeout(_fbStartConnectionMonitor, 500);
-    return true;
-  } catch(e){ console.warn('[MCM Firebase] init:',e.message); return false; }
-}
-
-function _fbBadge(state){
-  var dot=document.getElementById('fbDot');
-  var lbl=document.getElementById('fbLabel');
-  var states={
-    ok:     {bg:'rgba(0,255,136,0.9)', col:'var(--hacker)',        txt:'Nube ✓'},
-    saving: {bg:'rgba(244,121,32,0.9)',col:'var(--mcm-orange-lt)', txt:'Guardando…'},
-    error:  {bg:'rgba(224,92,58,0.9)', col:'#ff8060',              txt:'Sin conexión'},
-    off:    {bg:'rgba(0,255,136,0.3)', col:'var(--text-dim)',       txt:'Sin conexión'}
-  };
-  var v=states[state]||states.off;
-  if(dot){dot.style.background=v.bg;}
-  if(lbl){lbl.style.color=v.col; lbl.textContent=v.txt;}
-  _fbUpdateCard(state);
-}
-
-function _fbUpdateCard(state){
-  var card=document.getElementById('fbCardStatus');
-  if(!card) return; // card solo existe en viewDashboard
-  var cdot=document.getElementById('fbCardDot');
-  var ctxt=document.getElementById('fbCardTxt');
-  var csub=document.getElementById('fbCardSub');
-  var ctime=document.getElementById('fbCardTime');
-  if(!cdot||!ctxt||!csub) return; // elementos internos no encontrados
-  var now=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  if(state==='ok'){
-    cdot.style.background='#00ff88'; cdot.style.boxShadow='0 0 8px rgba(0,255,136,0.6)';
-    ctxt.textContent='CONECTADO'; ctxt.style.color='var(--hacker)';
-    csub.textContent='Firebase activo'; card.style.borderColor='rgba(0,255,136,0.3)';
-    if(ctime) ctime.textContent='Última sync: '+now;
-  } else if(state==='saving'){
-    cdot.style.background='#f47920'; cdot.style.boxShadow='0 0 8px rgba(244,121,32,0.6)';
-    ctxt.textContent='SINCRONIZANDO'; ctxt.style.color='var(--mcm-orange-lt)';
-    csub.textContent='Guardando datos…'; card.style.borderColor='rgba(244,121,32,0.3)';
-    if(ctime) ctime.textContent='Última sync: '+now;
-  } else if(state==='error'){
-    cdot.style.background='#e05c3a'; cdot.style.boxShadow='none';
-    ctxt.textContent='SIN CONEXIÓN'; ctxt.style.color='#ff8060';
-    csub.textContent='Verificar internet'; card.style.borderColor='rgba(224,92,58,0.3)';
-  } else {
-    cdot.style.background='rgba(255,255,255,0.15)'; cdot.style.boxShadow='none';
-    ctxt.textContent='DESCONECTADO'; ctxt.style.color='var(--text-dim)';
-    csub.textContent='Firebase inactivo'; card.style.borderColor='var(--dark-border)';
-  }
-}
-
-function _fbStartConnectionMonitor(){
-  if(!_fbDb) return;
-  _fbDb.ref('.info/connected').on('value',function(snap){
-    _fbBadge(snap.val() ? 'ok' : 'error');
-  });
-}
-
-function firebaseSave(){
-  if(!_fbInit()||!currentEngineer) return;
-  _fbBadge('saving');
-  _fbPaused = true; // pausar listener para evitar race condition
-  var promises = [];
-  try {
-    if(currentEngineer.isJefe){
-      var byOwner={};
-      FIELD_ENGINEERS.forEach(function(k){ byOwner[k]={ots:[],otData:{}}; });
-      ots.forEach(function(o){
-        var owner=o._owner||FIELD_ENGINEERS[0];
-        var clean={}; Object.keys(o).forEach(function(k){ if(k!=='_owner') clean[k]=o[k]; });
-        byOwner[owner].ots.push(clean);
-        if(otData[o.id]) byOwner[owner].otData[o.id]=otData[o.id];
-      });
-      FIELD_ENGINEERS.forEach(function(k){
-        promises.push(_fbDb.ref('engineers/'+k).set({
-          ots:byOwner[k].ots, otData:byOwner[k].otData,
-          updatedAt:new Date().toISOString(), updatedBy:'alfredo'
-        }));
-      });
-    } else {
-      // Guardar snapshot de los datos actuales (no referencia)
-      var otsSnapshot = JSON.parse(JSON.stringify(ots));
-      var otDataSnapshot = JSON.parse(JSON.stringify(otData));
-      promises.push(_fbDb.ref('engineers/'+currentEngineer.key).set({
-        ots: otsSnapshot, otData: otDataSnapshot,
-        updatedAt: new Date().toISOString(), updatedBy: currentEngineer.key
-      }));
-    }
-    Promise.all(promises).then(function(){
-      _fbBadge('ok');
-      _toast('☁️ Guardado en la nube','ok',2000);
-      // Reanudar listener DESPUÉS de que el write completó
-      setTimeout(function(){ _fbPaused = false; }, 1500);
-    }).catch(function(e){
-      _fbBadge('error');
-      _fbPaused = false;
-      console.warn('[MCM Firebase] save error:',e.message);
-      _toast('❌ Error al guardar: '+e.message,'err',4000);
-    });
-  } catch(e){
-    _fbBadge('error');
-    _fbPaused = false;
-    console.warn('[MCM Firebase] save:',e.message);
-  }
-}
-
-function firebaseLoad(key){
-  if(!_fbInit()) return;
-  // Cancelar listener previo
-  if(_fbListeners[key]){ _fbListeners[key](); delete _fbListeners[key]; }
-
-  // Carga inicial: solo una vez (once), no sobreescribir si hay datos locales más recientes
-  _fbDb.ref('engineers/'+key).once('value', function(snap){
-    var data=snap.val();
-    if(!data||!data.ots||!data.ots.length) return; // sin datos remotos, usar local
-    // Comparar fechas: usar remoto solo si es más reciente
-    var localRaw = localStorage.getItem('mcm_ots_v3_'+key);
-    var localOts = localRaw ? JSON.parse(localRaw) : [];
-    var remoteDate = data.updatedAt ? new Date(data.updatedAt).getTime() : 0;
-    var localDate  = 0;
-    try {
-      var localMeta = localStorage.getItem('mcm_meta_v3_'+key);
-      if(localMeta) localDate = new Date(JSON.parse(localMeta).updatedAt||0).getTime();
-    } catch(e){}
-    // Cargar remoto (tiene fecha o hay más OTs)
-    if(remoteDate >= localDate || data.ots.length >= localOts.length){
-      ots=data.ots; otData=data.otData||{};
-      localStorage.setItem('mcm_ots_v3_'+key, JSON.stringify(ots));
-      localStorage.setItem('mcm_otdata_v3_'+key, JSON.stringify(otData));
-      renderDashboard(); renderPanel();
-      if(currentOT) openDetail(currentOT.id);
-    }
-    _fbBadge('ok');
-    _toast('☁️ Sincronizado · '+(data.updatedBy||key),'ok',2500);
-  }, function(e){ _fbBadge('error'); console.warn('[MCM Firebase] load:',e.message); });
-
-  // Listener en tiempo real: ignorar si estamos guardando (_fbPaused)
-  var ref=_fbDb.ref('engineers/'+key);
-  var cbk=ref.on('value',function(snap){
-    if(_fbPaused) return; // evitar race condition durante saves
-    if(!currentEngineer||currentEngineer.key!==key) return;
-    var data=snap.val(); if(!data||!data.ots) return;
-    // Solo aplicar si los datos vienen de otro usuario (no del mismo)
-    if(data.updatedBy===key && data.updatedBy===currentEngineer.key) return;
-    ots=data.ots; otData=data.otData||{};
-    localStorage.setItem('mcm_ots_v3_'+key, JSON.stringify(ots));
-    localStorage.setItem('mcm_otdata_v3_'+key, JSON.stringify(otData));
-    renderDashboard(); renderPanel();
-  });
-  _fbListeners[key]=function(){ ref.off('value',cbk); };
-}
-
-function firebaseLoadAll(){
-  if(!_fbInit()) return;
-  var loaded=0, allOTs=[], allOtData={};
-  FIELD_ENGINEERS.forEach(function(k){
-    _fbDb.ref('engineers/'+k).once('value',function(snap){
-      var data=snap.val();
-      if(data&&data.ots){
-        data.ots.forEach(function(o){ allOTs.push(Object.assign({},o,{_owner:k})); });
-        Object.assign(allOtData,data.otData||{});
-      }
-      if(++loaded===FIELD_ENGINEERS.length){
-        ots=allOTs; otData=allOtData;
-        renderDashboard(); renderPanel();
-        if(currentOT) openDetail(currentOT.id);
-        _fbBadge('ok'); _toast('☁️ Equipo cargado desde la nube','ok',2500);
-      }
-    }, function(e){ _fbBadge('error'); });
-  });
-}
-
 function renderDashboard(){
-  if(!_fbReady && FB_CONFIG.apiKey!=='TU_API_KEY_AQUI') _fbInit();
   const now=new Date(), tod=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const total=ots.length;
   const completas=ots.filter(o=>otPct(o.id)===100&&(otData[o.id]?.tasks?.length>0)).length;
@@ -2036,11 +1766,14 @@ function renderDashboard(){
     return 0;
   });
 
-  badge.textContent=criticas.length>0?`⚠ ${criticas.length} OT${criticas.length>1?'s':''} CRÍTICA${criticas.length>1?'S':''}`:'✓ SIN CRÍTICOS';
-  badge.style.background=criticas.length>0?'rgba(224,92,58,0.2)':'rgba(0,255,136,0.1)';
-  badge.style.borderColor=criticas.length>0?'rgba(224,92,58,0.4)':'rgba(0,255,136,0.25)';
-  badge.style.color=criticas.length>0?'#ff8060':'var(--hacker)';
+  if(badge){
+    badge.textContent=criticas.length>0?`⚠ ${criticas.length} OT${criticas.length>1?'s':''} CRÍTICA${criticas.length>1?'S':''}`:'✓ SIN CRÍTICOS';
+    badge.style.background=criticas.length>0?'rgba(224,92,58,0.2)':'rgba(0,255,136,0.1)';
+    badge.style.borderColor=criticas.length>0?'rgba(224,92,58,0.4)':'rgba(0,255,136,0.25)';
+    badge.style.color=criticas.length>0?'#ff8060':'var(--hacker)';
+  }
 
+  if(atencion){
   if(!atencionOts.length){
     var _nm=currentEngineer?currentEngineer.name.toUpperCase():'INGENIERO';
     atencion.innerHTML='<div style="text-align:center;padding:24px;color:var(--hacker);font-family:\'Share Tech Mono\',monospace;font-size:0.8rem;">✓ TODAS LAS OTs ESTÁN COMPLETADAS · EXCELENTE TRABAJO ING. '+_nm+'</div>';
@@ -2082,6 +1815,7 @@ function renderDashboard(){
       </div>`;
     }).join('');
   }
+  } // end if(atencion)
 
   // ── ALERTAS VENCIMIENTO (14 días) ──
   const alertList=document.getElementById('alertasList');
@@ -2092,6 +1826,7 @@ function renderDashboard(){
     .sort((a,b)=>a.rem-b.rem)
     .slice(0,8);
 
+  if(alertList){
   if(!alertOts.length){
     alertList.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:0.78rem;font-family:'Share Tech Mono',monospace;">SIN FECHAS REGISTRADAS</div>`;
   } else {
@@ -2114,6 +1849,7 @@ function renderDashboard(){
       </div>`;
     }).join('');
   }
+  } // end if(alertList)
 
   // ── DONUT ──
   const activas2=ots.filter(o=>{const d=otData[o.id];return d&&d.tasks&&d.tasks.some(t=>t.status==='En Proceso');}).length;
@@ -2129,6 +1865,7 @@ function renderDashboard(){
   const segIds=['donutSeg1','donutSeg2','donutSeg3','donutSeg4'];
   segs.forEach((s,i)=>{
     const el=document.getElementById(segIds[i]);
+    if(!el)return; // FIX: null guard
     const len=total?circ*(s.val/total):0;
     el.style.stroke=s.color;
     el.style.strokeDasharray=`${len} ${circ-len}`;
@@ -2136,7 +1873,8 @@ function renderDashboard(){
     if(total)setTimeout(()=>{el.style.strokeDashoffset=-(offset*circ/total)+circ/4;},200+i*150);
     offset+=s.val;
   });
-  document.getElementById('donutLegend').innerHTML=segs.map(s=>`
+  var _donutLeg=document.getElementById('donutLegend');
+  if(_donutLeg) _donutLeg.innerHTML=segs.map(s=>`
     <div class="legend-item"><div class="legend-dot" style="background:${s.color};border-radius:3px;"></div><span>${s.label}</span><span class="legend-val">${s.val}</span></div>`).join('');
 
   // ── TICKER ──
@@ -2573,6 +2311,18 @@ function openNewModal(){
   document.getElementById('modalSaveBtn').textContent='Crear OT';
   document.getElementById('modalLevExtra').style.display='none';
   document.getElementById('modalImplExtra').style.display='none';
+  // Mostrar campo de asignación solo para Alfredo
+  var asignarWrap = document.getElementById('fAsignarWrap');
+  var asignarSel  = document.getElementById('fAsignarA');
+  if(currentEngineer && currentEngineer.isJefe){
+    asignarWrap.style.display = 'flex';
+    asignarSel.disabled = false;
+    // Pre-seleccionar el filtro activo (si no es 'all')
+    if(jefeFilter !== 'all') asignarSel.value = jefeFilter;
+    else asignarSel.value = 'zarate'; // default al primero
+  } else {
+    asignarWrap.style.display = 'none';
+  }
   document.getElementById('modalOverlay').classList.add('open');
   setTimeout(()=>document.getElementById('fOt').focus(),100);
 }
@@ -2603,6 +2353,16 @@ function openEditModal(){
   document.getElementById('fEntregado').value=currentOT.entregado||'';
   document.getElementById('fLiberado').value=currentOT.liberado||'';
   document.getElementById('fUseTpl').closest('label').style.display='none';
+  // Mostrar asignación (solo lectura) si es Jefe
+  var asignarWrap = document.getElementById('fAsignarWrap');
+  var asignarSel  = document.getElementById('fAsignarA');
+  if(currentEngineer && currentEngineer.isJefe){
+    asignarWrap.style.display = 'flex';
+    asignarSel.value = currentOT._owner || 'zarate';
+    asignarSel.disabled = false; // Permitir reasignar al editar
+  } else {
+    asignarWrap.style.display = 'none';
+  }
   document.getElementById('modalTitle').textContent='Editar OT';
   document.getElementById('modalSaveBtn').textContent='Guardar cambios';
   document.getElementById('modalOverlay').classList.add('open');
@@ -2648,51 +2408,106 @@ function saveOTModal(){
   };
   if(editingOTId){
     const idx=ots.findIndex(o=>o.id===editingOTId);
-    if(idx>=0)Object.assign(ots[idx],{ot,idNum:id,cliente:cli,detonacion:document.getElementById('fDetonacion').value,limite:document.getElementById('fLimite').value,...wf});
-    currentOT=ots[idx>=0?idx:0];
+    if(idx>=0){
+      Object.assign(ots[idx],{ot,idNum:id,cliente:cli,detonacion:document.getElementById('fDetonacion').value,limite:document.getElementById('fLimite').value,...wf});
+      // Si Alfredo reasiógna a otro ingeniero al editar, actualizar _owner
+      if(currentEngineer && currentEngineer.isJefe){
+        ots[idx]._owner = document.getElementById('fAsignarA').value;
+      }
+      currentOT=ots[idx];
+    }
     saveAll();
     const sBtn=document.getElementById('floatSaveBtn');
     if(sBtn){sBtn.classList.remove('visible','saved');}
-    closeModal();renderDetailInfo();renderTimeline();
+    closeModal();if(currentOT){renderDetailInfo();renderTimeline();}
   }else{
     const newId=uid(),useTpl=document.getElementById('fUseTpl').checked;
-    ots.push({id:newId,ot,idNum:id,cliente:cli,detonacion:document.getElementById('fDetonacion').value,limite:document.getElementById('fLimite').value,...wf,createdAt:today()});
+    const newOT={id:newId,ot,idNum:id,cliente:cli,detonacion:document.getElementById('fDetonacion').value,limite:document.getElementById('fLimite').value,...wf,createdAt:today()};
+    // Asignar propietario: Jefe elige en el select, ingeniero normal se asigna a sí mismo
+    if(currentEngineer && currentEngineer.isJefe){
+      newOT._owner = document.getElementById('fAsignarA').value;
+    }
+    ots.push(newOT);
+    if(currentEngineer && !currentEngineer.isJefe) localStorage.removeItem('mcm_cleared_'+currentEngineer.key);
     otData[newId]={tasks:useTpl?TPL_TASKS.map((t,i)=>({id:i+1,...t,status:'Pendiente',date:today()})):[]};
     saveAll();closeModal();renderPanel();
   }
 }
 
-function duplicateOT(id){const src=ots.find(o=>o.id===id);if(!src)return;const srcData=otData[id]||{tasks:[]};const newId=uid();ots.push({...src,id:newId,ot:src.ot+' (copia)',createdAt:today()});otData[newId]={tasks:srcData.tasks.map(t=>({...t,id:uid(),status:'Pendiente',date:today()}))};saveAll();renderPanel();}
-function deleteOT(id){
-  const ot=ots.find(o=>o.id===id);
-  if(!confirm('¿Eliminar "'+(ot?.ot||id)+'"?')) return;
-  ots=ots.filter(o=>o.id!==id);
-  delete otData[id];
-  // Guardar en localStorage primero (sincrono)
-  if(currentEngineer && !currentEngineer.isJefe){
-    localStorage.setItem(storeOTS(),JSON.stringify(ots));
-    localStorage.setItem(storeDATA(),JSON.stringify(otData));
-    localStorage.setItem('mcm_meta_v3_'+currentEngineer.key,
-      JSON.stringify({updatedAt:new Date().toISOString()}));
-  }
+function duplicateOT(id){
+  const src=ots.find(o=>o.id===id);
+  if(!src) return;
+  const srcData=otData[id]||{tasks:[]};
+  const newId=uid();
+  // La copia hereda el mismo propietario (_owner) que la OT original
+  const copy={...src, id:newId, ot:src.ot+' (copia)', createdAt:today()};
+  ots.push(copy);
+  otData[newId]={tasks:srcData.tasks.map(t=>({...t,id:uid(),status:'Pendiente',date:today()}))};
   saveAll();
-  // Cerrar detalle si estaba abierto
-  if(currentOT&&currentOT.id===id){ currentOT=null; showView('Panel'); }
-  renderPanel(); renderDashboard();
+  renderPanel();
+}
+// ── Custom confirm modal ──────────────────────────────────────────────
+var _confirmCallback = null;
+function showConfirm(msg, cb){
+  document.getElementById('confirmMsg').textContent = msg;
+  var ov = document.getElementById('confirmOverlay');
+  ov.style.display = 'flex';
+  _confirmCallback = cb;
+}
+function confirmAccept(){
+  document.getElementById('confirmOverlay').style.display = 'none';
+  if(_confirmCallback){ _confirmCallback(); _confirmCallback=null; }
+}
+function confirmCancel(){
+  document.getElementById('confirmOverlay').style.display = 'none';
+  _confirmCallback = null;
+}
+
+function _doDeleteOT(id){
+  // 1. Quitar de memoria
+  ots = ots.filter(function(o){ return o.id !== id; });
+  delete otData[id];
+
+  // 2. Guardar en localStorage via saveAll() centralizado
+  saveAll();
+
+  // 3. Si el ingeniero borró su última OT, marcar intención para no volver a sembrar demo
+  if(ots.length === 0 && currentEngineer && !currentEngineer.isJefe){
+    localStorage.setItem('mcm_cleared_'+currentEngineer.key, '1');
+  }
+
+  // 4. Navegar correctamente
+  if(currentOT && currentOT.id === id){
+    currentOT = null;
+    showView('Panel'); // showView ya llama renderPanel()
+  } else {
+    renderPanel();
+    renderDashboard();
+  }
+  _toast('🗑 OT eliminada','ok',2000);
+}
+
+function deleteOT(id){
+  var ot = ots.find(function(o){ return o.id===id; });
+  if(!ot){ console.warn('[MCM] deleteOT: OT no encontrada en memoria, id=',id); return; }
+  showConfirm('¿Eliminar "' + String(ot.ot||id) + '"? Esta acción no se puede deshacer.', function(){
+    _doDeleteOT(id);
+  });
 }
 
 /* ═══════════════════════════════
    TASKS
 ═══════════════════════════════ */
-function currentTasks(){return otData[currentOT.id].tasks||[];}
-function setCurrentTasks(t){otData[currentOT.id].tasks=t;}
-function addTask(){const input=document.getElementById('taskInput'),cat=document.getElementById('catSelect').value,text=input.value.trim();if(!text){input.focus();return;}currentTasks().push({id:uid(),text,cat,status:'Pendiente',date:today()});input.value='';input.focus();saveAll();renderTasks();updateStats();}
-document.getElementById('taskInput').addEventListener('keydown',e=>{if(e.key==='Enter')addTask();});
-function changeStatus(id,val){const t=currentTasks().find(t=>t.id==id);if(t){t.status=val;saveAll();renderTasks();updateStats();}}
-function deleteTask(id){setCurrentTasks(currentTasks().filter(t=>t.id!=id));saveAll();renderTasks();updateStats();}
-function confirmClearTasks(){if(confirm('¿Eliminar todas las tareas?')){setCurrentTasks([]);saveAll();renderTasks();updateStats();}}
-function setFilter(f,el){taskFilter=f;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderTasks();}
-function getFiltered(){return taskFilter==='all'?currentTasks():currentTasks().filter(t=>t.status===taskFilter);}
+function currentTasks(){if(!currentOT)return[];if(!otData[currentOT.id])otData[currentOT.id]={tasks:[]};return otData[currentOT.id].tasks||[];}
+function setCurrentTasks(t){if(!currentOT)return;if(!otData[currentOT.id])otData[currentOT.id]={tasks:[]};if(Array.isArray(t))otData[currentOT.id].tasks=t;}
+function addTask(){const input=document.getElementById('taskInput'),cat=document.getElementById('catSelect');const catVal=cat?cat.value:'general',text=input?input.value.trim():'';if(!text){if(input&&input.focus)input.focus();return;}currentTasks().push({id:uid(),text,cat:catVal,status:'Pendiente',date:today()});if(input){input.value='';if(input.focus)input.focus();}saveAll();renderTasks();updateStats();}
+(function(){ var ti=document.getElementById('taskInput');
+  if(ti) ti.addEventListener('keydown',function(e){if(e.key==='Enter')addTask();}); })();
+function changeStatus(id,val){const tasks=currentTasks();if(!Array.isArray(tasks))return;const t=tasks.find(t=>t.id==id);if(t){t.status=val;saveAll();renderTasks();updateStats();}}
+function deleteTask(id){const tasks=currentTasks();if(!Array.isArray(tasks))return;setCurrentTasks(tasks.filter(t=>t.id!=id));saveAll();renderTasks();updateStats();}
+function confirmClearTasks(){showConfirm('¿Eliminar todas las tareas? Esta acción no se puede deshacer.',function(){setCurrentTasks([]);saveAll();renderTasks();updateStats();});}
+function setFilter(f,el){taskFilter=f;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));if(el&&el.classList)el.classList.add('active');renderTasks();}
+function getFiltered(){if(!currentOT)return[];return taskFilter==='all'?currentTasks():currentTasks().filter(t=>t.status===taskFilter);}
 
 function renderTasks(){
   const list=document.getElementById('taskList'),filtered=getFiltered();
@@ -2899,11 +2714,37 @@ function renderCalendar(){
   }).join('');
 }
 
+/* pageshow: recargar datos cuando el navegador restaura página desde caché */
+window.addEventListener('pageshow', function(e){
+  if(e.persisted && currentEngineer){
+    // Página viene de bfcache — recargar datos frescos de localStorage
+    if(!currentEngineer.isJefe){
+      ots    = load(storeOTS())  || [];
+      otData = load(storeDATA()) || {};
+    } else {
+      _loadAllEngineers();
+    }
+    renderDashboard(); renderPanel();
+  }
+});
+
 /* INIT */
 // Restaurar sesión si ya había una activa (recarga de página)
 if(!_restoreSession()){
   showView('Dashboard');
 }
 </script>
+
+<!-- ══ CONFIRM MODAL ══ -->
+<div id="confirmOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:#0f1e35;border:1px solid #1a3050;border-radius:16px;padding:28px 28px 22px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:#e2eaff;margin-bottom:10px;">⚠ CONFIRMAR ELIMINACIÓN</div>
+    <div id="confirmMsg" style="font-size:0.88rem;color:#7a99cc;margin-bottom:22px;line-height:1.5;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="confirmCancel()" style="background:transparent;border:1px solid #1a3050;color:#7a99cc;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.84rem;font-weight:500;">Cancelar</button>
+      <button onclick="confirmAccept()" style="background:#b02020;border:1px solid #e05c3a;color:#fff;padding:9px 20px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.84rem;font-weight:600;">Sí, eliminar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
