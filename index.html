@@ -809,7 +809,7 @@ body.view-panel{background:var(--bg);}
     <div class="pstat red"><div class="pstat-num" id="psVencidas">0</div><div class="pstat-label">Vencidas</div></div>
   </div>
   <div class="search-row">
-    <input class="search-input" id="searchInput" type="text" placeholder="Buscar por OT, cliente o ID..." oninput="renderPanel()"/>
+    <input class="search-input" id="searchInput" type="text" placeholder="Buscar por OT, cliente, ID o fecha (YYYY-MM-DD)..." oninput="renderPanel()"/>
   </div>
   <div class="ot-grid" id="otGrid"></div>
 </div>
@@ -831,6 +831,7 @@ body.view-panel{background:var(--bg);}
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
         <div style="display:flex;gap:8px;">
           <button class="edit-btn" onclick="openEditModal()">✏ Editar datos</button>
+          <button class="edit-btn" style="background:rgba(176,32,32,0.12);border-color:rgba(224,92,58,0.4);color:#ff8080;" onclick="if(currentOT)deleteOT(currentOT.id)">🗑 Eliminar</button>
         </div>
         <div style="display:flex;align-items:center;gap:8px;background:rgba(244,121,32,0.15);border:1px solid rgba(244,121,32,0.35);border-radius:8px;padding:6px 12px;">
           <span style="font-size:1.1rem;">👷</span>
@@ -1148,12 +1149,13 @@ function loginAs(key, name, initials, isJefe){
   if(ls){ ls.removeAttribute('style'); ls.style.display='none'; }
   _updateEngBadge();
   _updateDashHeader();
+  greet();
   _renderJefeUI(); renderDashboard(); renderPanel(); showView('Dashboard');
   _toast(currentEngineer.isJefe?'👑 Vista global, Alfredo':'▸ Bienvenido, '+name,'ok',2500);
 }
 
 function switchEngineer(){
-  currentEngineer=null; currentOT=null; ots=[]; otData={}; jefeFilter='all'; sessionStorage.removeItem(STORE_ENG);
+  currentEngineer=null; currentOT=null; ots=[]; otData={}; jefeFilter='all'; calWeekOffset=0; sessionStorage.removeItem(STORE_ENG);
   var badge=document.getElementById('engBadge'); if(badge) badge.style.display='none';
   var fsb=document.getElementById('floatSaveBtn'); if(fsb) fsb.classList.remove('visible','saved');
   _renderJefeUI();
@@ -1193,7 +1195,7 @@ function _seedDemoData(){
   const demo={id:uid(),ot:'OT-'+Math.floor(400000+Math.random()*9999),
     cliente:'Morysan Comercial',idNum:'MCM-001',
     detonacion:'2026-01-15',limite:'2026-04-15',
-    levantamiento:'Agendada',levantamiento_fecha:'2026-03-20',levantamiento_hora:'09:00',
+    levantamiento:'Agendada',levantamiento_fecha:new Date(Date.now()+7*86400000).toISOString().slice(0,10),levantamiento_hora:'09:00',
     levantamiento_nota:'Primera OT de ejemplo',
     diseno:'Solicitado',direccionamiento:'',pyot:'',equipamiento:'',
     cpe:'',construccion:'',implementacion:'',entregado:'',liberado:'',createdAt:d};
@@ -1331,6 +1333,9 @@ function parseDate(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);re
 function fmtDate(d){if(!d)return '—';return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});}
 function diffDays(a,b){return Math.round((b-a)/86400000);}
 function escHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// Helpers de ingeniero (globales, usados en panel y detalle)
+function engInitials(key){var m={zarate:'FZ',hernandez:'MH',ahumada:'FA',cruz:'AC'};return m[key]||'?';}
+function engShortName(key){var m={zarate:'F. Zarate',hernandez:'M. Hernández',ahumada:'F. Ahumada',cruz:'A. Cruz'};return m[key]||key||'?';}
 // Helper: renders a labeled input inside workflow detail blocks
 function detInp(label, key, val, ph, type, saveFn){
   type = type || 'text';
@@ -1610,7 +1615,7 @@ function renderJefeDashboard(){
   }
 
   /* ── Weekly Heatmap ── */
-  var weekStart = getWeekStart(tod);
+  var weekStart = getWeekStart(0);
   var weekDays  = [];
   for(var d=0;d<5;d++){ var wd=new Date(weekStart); wd.setDate(wd.getDate()+d); weekDays.push(wd); }
   var DAY_LBL = ['LUN','MAR','MIÉ','JUE','VIE'];
@@ -1822,7 +1827,6 @@ function renderDashboard(){
   const alertOts=[...ots]
     .filter(o=>o.limite&&otPct(o.id)<100)
     .map(o=>({...o,rem:diffDays(tod,parseDate(o.limite))}))
-    .filter(o=>o.rem>=-999)
     .sort((a,b)=>a.rem-b.rem)
     .slice(0,8);
 
@@ -1861,15 +1865,18 @@ function renderDashboard(){
   ];
   var _g_donutTotal=document.getElementById('donutTotal'); if(_g_donutTotal) _g_donutTotal.textContent=total;
   const circ=2*Math.PI*50;
-  let offset=0;
   const segIds=['donutSeg1','donutSeg2','donutSeg3','donutSeg4'];
+  // Reset visual antes de re-animar para evitar transiciones pegadas
+  segIds.forEach(id=>{const el=document.getElementById(id);if(el){el.style.transition='none';el.style.strokeDasharray='0 '+circ;el.style.strokeDashoffset=circ/4;}});
+  const _doNutSvg=document.getElementById('donutSvg');if(_doNutSvg)_doNutSvg.getBoundingClientRect();
+  let offset=0;
   segs.forEach((s,i)=>{
     const el=document.getElementById(segIds[i]);
-    if(!el)return; // FIX: null guard
+    if(!el)return;
     const len=total?circ*(s.val/total):0;
     el.style.stroke=s.color;
     el.style.strokeDasharray=`${len} ${circ-len}`;
-    el.style.strokeDashoffset=circ/4;
+    el.style.transition=`stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1) ${0.2+i*0.15}s`;
     if(total)setTimeout(()=>{el.style.strokeDashoffset=-(offset*circ/total)+circ/4;},200+i*150);
     offset+=s.val;
   });
@@ -1897,7 +1904,7 @@ function renderDashboard(){
 function renderPanel(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase();
   const grid=document.getElementById('otGrid');
-  const list=q?ots.filter(o=>(o.ot||'').toLowerCase().includes(q)||(o.cliente||'').toLowerCase().includes(q)||(o.idNum||'').toLowerCase().includes(q)):ots;
+  const list=q?ots.filter(o=>(o.ot||'').toLowerCase().includes(q)||(o.cliente||'').toLowerCase().includes(q)||(o.idNum||'').toLowerCase().includes(q)||(o.detonacion||'').includes(q)||(o.limite||'').includes(q)):ots;
   const total=ots.length;
   const activas=ots.filter(o=>{const d=otData[o.id];return d&&d.tasks&&d.tasks.some(t=>t.status==='En Proceso');}).length;
   document.getElementById('psTotal').textContent=total;
@@ -1923,7 +1930,7 @@ function renderPanel(){
     return`<div class="ot-card" onclick="openDetail('${ot.id}')">
       <div class="ot-card-top" style="background:${topCol}"></div>
       <div class="ot-card-body">
-        <div style="margin-bottom:6px;"><div class="ot-num">${escHtml(ot.ot||'—')}</div><div class="ot-client">${escHtml(ot.cliente||'—')}</div>${ot.idNum?`<div class="ot-id">ID: ${escHtml(ot.idNum)}</div>`:''}</div>
+        <div style="margin-bottom:6px;"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;"><div><div class="ot-num">${escHtml(ot.ot||'—')}</div><div class="ot-client">${escHtml(ot.cliente||'—')}</div>${ot.idNum?`<div class="ot-id">ID: ${escHtml(ot.idNum)}</div>`:''}</div>${(ot._owner&&currentEngineer&&currentEngineer.isJefe)?`<div style="flex-shrink:0;background:rgba(26,111,212,0.12);border:1px solid rgba(26,111,212,0.3);border-radius:6px;padding:3px 8px;font-family:'Bebas Neue',sans-serif;font-size:0.72rem;letter-spacing:1px;color:#6db3ff;" title="${engShortName(ot._owner)}">${engInitials(ot._owner)}</div>`:''}</div></div>
         <div class="ot-deadline-row"><span style="font-size:0.7rem;color:var(--muted);">🏁 ${ot.limite?fmtDate(parseDate(ot.limite)):'Sin fecha'}</span>${dlChip}</div>
         <div class="pipeline-wrap"><div class="pipeline-label">Flujo de trabajo</div><div class="pipeline-dots">${dots}</div></div>
         <div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:0.7rem;color:var(--muted);">Checklist</span><span style="font-size:0.73rem;font-weight:600;color:var(--mcm-blue);">${pct}%</span></div><div style="height:5px;background:#e8eef8;border-radius:20px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--mcm-blue),var(--mcm-blue-light));border-radius:20px;transition:width 0.5s;"></div></div></div>
@@ -2254,7 +2261,7 @@ function saveDates(){
 }
 
 function renderTimeline(){
-  const sv=document.getElementById('dtStartDate').value,ev=document.getElementById('dtEndDate').value,card=document.getElementById('tlCard'),pill=document.getElementById('tlStatusPill');
+  const card=document.getElementById('tlCard'),pill=document.getElementById('tlStatusPill');
   document.getElementById('dtStartDate').value=currentOT.detonacion||'';
   document.getElementById('dtEndDate').value=currentOT.limite||'';
   const startVal=currentOT.detonacion,endVal=currentOT.limite;
@@ -2374,6 +2381,8 @@ function closeModalOutside(e){if(e.target===document.getElementById('modalOverla
 function saveOTModal(){
   const ot=document.getElementById('fOt').value.trim(),id=document.getElementById('fId').value.trim(),cli=document.getElementById('fCliente').value.trim();
   if(!ot||!cli){alert('OT y Cliente son obligatorios.');return;}
+  const detV=document.getElementById('fDetonacion').value,limV=document.getElementById('fLimite').value;
+  if(detV&&limV&&limV<detV){alert('\u26a0\ufe0f La fecha l\u00edmite no puede ser anterior a la fecha de detonaci\u00f3n.');return;}
   const lev=document.getElementById('fLevantamiento').value;
   const dis=document.getElementById('fDiseno').value;
   const impl=document.getElementById('fImplementacion').value;
@@ -2417,6 +2426,10 @@ function saveOTModal(){
       currentOT=ots[idx];
     }
     saveAll();
+    if(currentEngineer&&currentEngineer.isJefe){
+      _loadAllEngineers();
+      if(jefeFilter!=='all') ots=ots.filter(function(o){return(o._owner||FIELD_ENGINEERS[0])===jefeFilter;});
+    }
     const sBtn=document.getElementById('floatSaveBtn');
     if(sBtn){sBtn.classList.remove('visible','saved');}
     closeModal();if(currentOT){renderDetailInfo();renderTimeline();}
