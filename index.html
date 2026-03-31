@@ -3219,6 +3219,13 @@
           </div>
         </div>
 
+        <!-- ⑤ EMBUDO INGENIERO -->
+        <div class="chart-card" id="engEmbudoCard" style="display:none;margin-top:16px;">
+          <div class="chart-title">Mi Embudo de Etapas</div>
+          <div class="chart-sub">▸ AVANCE DE MIS OTs POR FASE</div>
+          <div id="engEtapaBreakdown" style="display:flex;flex-direction:column;gap:7px;margin-top:14px;"></div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -3759,14 +3766,18 @@
     ];
     const FIELD_ENGINEERS = ['zarate', 'hernandez', 'ahumada', 'cruz'];
 
+    var _refreshTimer = null;
     function _refreshCurrentViews() {
-      if(document.getElementById('viewDashboard').classList.contains('active')) renderDashboard();
-      if(document.getElementById('viewPanel').classList.contains('active')) renderPanel();
-      if(document.getElementById('viewCalendar') && document.getElementById('viewCalendar').classList.contains('active')) renderCalendar();
-      if(document.getElementById('viewDetail').classList.contains('active') && currentOT) {
-         currentOT = ots.find(function(o){ return o.id === currentOT.id; }) || currentOT;
-         renderDetailInfo(); renderTasks(); renderTimeline();
-      }
+      if (_refreshTimer) clearTimeout(_refreshTimer);
+      _refreshTimer = setTimeout(function() {
+        if(document.getElementById('viewDashboard').classList.contains('active')) renderDashboard();
+        if(document.getElementById('viewPanel').classList.contains('active')) renderPanel();
+        if(document.getElementById('viewCalendar') && document.getElementById('viewCalendar').classList.contains('active')) renderCalendar();
+        if(document.getElementById('viewDetail').classList.contains('active') && currentOT) {
+           currentOT = ots.find(function(o){ return o.id === currentOT.id; }) || currentOT;
+           renderDetailInfo(); renderTasks(); renderTimeline();
+        }
+      }, 50); // Debounce de 50ms ráfagas
     }
 
     function loginAs(key, name, initials, isJefe) {
@@ -4007,10 +4018,14 @@
           if (otData[o.id]) byOwner[owner].otData[o.id] = otData[o.id];
         });
 
+        var updates = {};
         FIELD_ENGINEERS.forEach(function (k) {
-          storageRef.child('mcm_ots_v3_' + k).set(byOwner[k].ots);
-          storageRef.child('mcm_otdata_v3_' + k).set(byOwner[k].otData);
+          if(jefeFilter === 'all' || jefeFilter === k) {
+             updates['mcm_ots_v3_' + k] = byOwner[k].ots;
+             updates['mcm_otdata_v3_' + k] = byOwner[k].otData;
+          }
         });
+        storageRef.update(updates);
       } else {
         storageRef.child(storeOTS()).set(ots);
         storageRef.child(storeDATA()).set(otData);
@@ -4018,7 +4033,7 @@
     }
     function parseDate(s) { if (!s) return null; const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
     function fmtDate(d) { if (!d) return '—'; return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }); }
-    function diffDays(a, b) { return Math.round((b - a) / 86400000); }
+    function diffDays(a, b) { var r = Math.round((b - a) / 86400000); return isNaN(r) ? 9999 : r; }
     function escHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     // Helpers de ingeniero (globales, usados en panel y detalle)
     function engInitials(key) { var m = { zarate: 'FZ', hernandez: 'MH', ahumada: 'FA', cruz: 'AC' }; return m[key] || '?'; }
@@ -4542,6 +4557,32 @@
           }).join('');
         }
       } // end if(alertList)
+
+      // ── EMBUDO INGENIERO ──
+      var engEmbudoCard = document.getElementById('engEmbudoCard');
+      if (engEmbudoCard) {
+        if (currentEngineer && currentEngineer.isJefe) {
+          engEmbudoCard.style.display = 'none';
+        } else {
+          engEmbudoCard.style.display = 'block';
+          var _eEt = document.getElementById('engEtapaBreakdown');
+          if (_eEt && total > 0) {
+            _eEt.innerHTML = WF_FIELDS.map(function(wf) {
+              var done = ots.filter(function(o) { var v = (o[wf.key] || '').toLowerCase(); return DONE_VALS.includes(v); }).length;
+              var pct = Math.round(done / total * 100);
+              var col = pct >= 80 ? 'var(--hacker)' : pct >= 50 ? 'var(--mcm-orange-lt)' : pct >= 25 ? '#f5a623' : '#ff6b6b';
+              return '<div style="display:grid;grid-template-columns:128px 1fr 42px;align-items:center;gap:9px;">'
+                + '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.6rem;color:var(--text-dim);text-align:right;">' + wf.label + '</div>'
+                + '<div style="height:12px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;">'
+                + '<div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:4px;transition:width 1s cubic-bezier(.4,0,.2,1) 0.3s;"></div></div>'
+                + '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.6rem;color:' + col + ';text-align:right;">' + Math.min(100, pct) + '%</div>'
+                + '</div>';
+            }).join('');
+          } else if (_eEt) {
+            _eEt.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:0.72rem;">SIN DATOS</div>';
+          }
+        }
+      }
 
       // ── DONUT ──
       const activas2 = ots.filter(o => { const d = otData[o.id]; return d && d.tasks && d.tasks.some(t => t.status === 'En Proceso'); }).length;
