@@ -10,6 +10,7 @@
     rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
+
   <style>
     :root {
       --mcm-blue: #0a3d7c;
@@ -3007,6 +3008,11 @@
               <div style="font-size:0.84rem;font-weight:600;color:var(--mcm-orange-lt);" id="dashEngName">—</div>
             </div>
           </div>
+          <div id="btnExportarExcelWrap" style="display:none;align-items:center;">
+            <button onclick="exportOTsToExcel()" style="background:#1a6fd4;border:1px solid #6db3ff;color:#fff;padding:8px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;box-shadow: 0 4px 12px rgba(26,111,212,0.4);display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#1256a8';this.style.transform='translateY(-2px)';" onmouseout="this.style.background='#1a6fd4';this.style.transform='none';">
+              📥 Exportar
+            </button>
+          </div>
           <div style="text-align:right;">
             <div id="dashDate" style="font-size:0.76rem;color:rgba(255,255,255,0.55);"></div>
             <div id="dashTime"
@@ -3030,7 +3036,7 @@
         <div class="kpi-card red">
           <div class="kpi-label">Atención Urgente</div>
           <div class="kpi-num" id="kpiVencidas">0</div>
-          <div class="kpi-sub">vencidas o críticas</div>
+          <div class="kpi-sub" id="kpiVencidasSub">vencidas o críticas</div>
           <div class="kpi-ring"><svg viewBox="0 0 48 48">
               <circle class="track" cx="24" cy="24" r="21" />
               <circle class="fill" id="ringVencidas" cx="24" cy="24" r="21" />
@@ -3169,8 +3175,8 @@
         <div
           style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
           <div>
-            <div class="chart-title" style="color:var(--mcm-orange-lt);">🎯 Atención Hoy</div>
-            <div class="chart-sub">▸ OTs QUE REQUIEREN ACCIÓN INMEDIATA</div>
+            <div class="chart-title" style="color:var(--mcm-orange-lt);">🎯 Atención y Seguimiento</div>
+            <div class="chart-sub" id="atencionSub">▸ OTs QUE REQUIEREN ACCIÓN INMEDIATA</div>
           </div>
           <div id="atencionBadge"
             style="font-family:'Share Tech Mono',monospace;font-size:0.72rem;padding:5px 12px;border-radius:20px;background:rgba(244,121,32,0.15);border:1px solid rgba(244,121,32,0.3);color:var(--mcm-orange-lt);">
@@ -3183,8 +3189,8 @@
 
         <!-- ③ ALERTAS DE VENCIMIENTO -->
         <div class="chart-card full">
-          <div class="chart-title">⏰ Alertas de Vencimiento</div>
-          <div class="chart-sub">▸ PRÓXIMAS ENTREGAS · PRÓXIMOS 14 DÍAS</div>
+          <div class="chart-title">⏰ Calendario de Entregas</div>
+          <div class="chart-sub" id="alertasSub">▸ PRÓXIMAS ENTREGAS · PRÓXIMOS 30 DÍAS</div>
           <div id="alertasList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;">
           </div>
         </div>
@@ -3240,7 +3246,9 @@
         <div id="engFilterWrap" class="eng-filter" style="display:none"></div>
         <div class="panel-toolbar">
           <h2>Órdenes de Trabajo</h2>
-          <button class="btn" onclick="openNewModal()">+ Nueva OT</button>
+          <div style="display:flex;gap:10px;">
+            <button class="btn" onclick="openNewModal()">+ Nueva OT</button>
+          </div>
         </div>
         <div class="panel-stats">
           <div class="pstat">
@@ -3902,9 +3910,11 @@
       var banner = document.getElementById('jefeBanner');
       var wrap = document.getElementById('engFilterWrap');
       var lbl = document.getElementById('jefeBannerLabel');
+      var btnExcel = document.getElementById('btnExportarExcelWrap');
       var isJefe = !!(currentEngineer && currentEngineer.isJefe);
       if (banner) banner.style.display = isJefe ? 'flex' : 'none';
       if (wrap) wrap.style.display = isJefe ? 'flex' : 'none';
+      if (btnExcel) btnExcel.style.display = isJefe ? 'flex' : 'none';
       if (!isJefe || !wrap) return;
       var names = { zarate: 'F. Zarate', hernandez: 'M. Hernández', ahumada: 'F. Ahumada', cruz: 'A. Cruz' };
       var keys = ['all'].concat(FIELD_ENGINEERS);
@@ -4053,7 +4063,20 @@
         + '</div>';
     }
 
-    function isOverdue(ot) { if (!ot.limite) return false; const now = new Date(), end = parseDate(ot.limite), tod = new Date(now.getFullYear(), now.getMonth(), now.getDate()); return end < tod; }
+    function isOTClosed(o) {
+      const st = (o.entregado || '').toLowerCase(), stL = (o.liberado || '').toLowerCase();
+      if (st.includes('entregado') || st.includes('cancelad') || st.includes('cancelacion') || stL.includes('entregado') || stL.includes('cancelad') || stL.includes('cancelacion')) return true;
+      if (otPct(o.id) === 100) return true;
+      return false;
+    }
+
+    function isOverdue(ot) { 
+      if (!ot.limite) return false; 
+      if (isOTClosed(ot)) return false;
+
+      const now = new Date(), end = parseDate(ot.limite), tod = new Date(now.getFullYear(), now.getMonth(), now.getDate()); 
+      return end < tod; 
+    }
     function otPct(id) { const d = otData[id]; if (!d || !d.tasks || !d.tasks.length) return 0; return Math.round((d.tasks.filter(t => t.status === 'Completado').length / d.tasks.length) * 100); }
 
     const DONE_VALS = ['si', 'generado', 'terminada', 'entregado', 'retirada', 'realizada', 'folio generado', 'direccionamiento generado'];
@@ -4252,7 +4275,7 @@
 
       /* ── Issues Table ── */
       var issues = allOTs.filter(function (o) {
-        if (otPct(o.id) === 100) return false;
+        if (isOTClosed(o)) return false;
         if (isOverdue(o)) return true;
         if (o.limite) { var r = diffDays(tod, parseDate(o.limite)); if (r >= 0 && r <= 7) return true; }
         return false;
@@ -4429,84 +4452,100 @@
     function renderDashboard() {
       const now = new Date(), tod = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const total = ots.length;
-      const completas = ots.filter(o => otPct(o.id) === 100 && (otData[o.id]?.tasks?.length > 0)).length;
+
+      // «Completas» = OTs cerradas (entregadas/liberadas/canceladas) O con 100% checklist
+      const completas = ots.filter(o => isOTClosed(o)).length;
+
+      // «Vencidas» = OTs activas cuya fecha límite ya pasó
       const vencidas = ots.filter(o => isOverdue(o)).length;
+
       const avgPct = total ? Math.round(ots.reduce((s, o) => s + otPct(o.id), 0) / total) : 0;
 
-      // OTs próximas (≤7 días, no vencidas, no completas)
       const proximas = ots.filter(o => {
-        if (!o.limite || isOverdue(o) || otPct(o.id) === 100) return false;
+        if (!o.limite || isOverdue(o) || isOTClosed(o)) return false;
         const r = diffDays(tod, parseDate(o.limite));
         return r >= 0 && r <= 7;
       });
 
-      // OTs críticas hoy: vencidas + vencen en ≤3 días + flujo bloqueado en etapa clave
-      const BLOQ_KEYS = ['construccion', 'entregado', 'liberado'];
+      // OTs críticas: vencidas + vencen en ≤3 días (no cerradas)
       const criticas = ots.filter(o => {
-        if (otPct(o.id) === 100) return false;
+        if (isOTClosed(o)) return false;
         if (isOverdue(o)) return true;
         if (o.limite) { const r = diffDays(tod, parseDate(o.limite)); if (r >= 0 && r <= 3) return true; }
-        const bloqEtapa = BLOQ_KEYS.some(k => !o[k] || o[k] === '');
-        const prevOk = o.levantamiento && o.diseno && o.pyot;
-        return bloqEtapa && prevOk;
+        return false;
       });
 
       // ── KPIs ──
+      // «Atención Urgente» = mismo conjunto que criticas (lo que la lista muestra)
       animateCount(document.getElementById('kpiActivas'), total);
-      animateCount(document.getElementById('kpiVencidas'), vencidas);
+      animateCount(document.getElementById('kpiVencidas'), criticas.length);  // Consistente con lista
       animateCount(document.getElementById('kpiProximas'), proximas.length);
       animateCount(document.getElementById('kpiAvance'), avgPct, '%');
       setRing('ringActivas', total ? Math.min(100, (total / Math.max(total, 10)) * 100) : 0);
-      setRing('ringVencidas', total ? vencidas / total * 100 : 0);
+      setRing('ringVencidas', total ? criticas.length / total * 100 : 0);
       setRing('ringProximas', total ? proximas.length / total * 100 : 0);
       setRing('ringAvance', avgPct);
 
-      // ── ATENCIÓN HOY ──
+      // Actualizar subtexto del KPI de urgentes
+      var kpiVSub = document.getElementById('kpiVencidasSub');
+      if (kpiVSub) {
+        var vStr = vencidas > 0 ? vencidas + ' vencida' + (vencidas > 1 ? 's' : '') : 'sin vencidas';
+        kpiVSub.textContent = vStr + (criticas.length > vencidas ? ' · ' + (criticas.length - vencidas) + ' próx. a vencer' : '');
+      }
+
+      // ── ATENCIÓN Y SEGUIMIENTO ──
+      // Sección crítica: vencidas + entregan en ≤3 días (arriba)
+      // Sección seguimiento: resto de OTs activas ordenadas por fecha
       const atencion = document.getElementById('atencionList');
       const badge = document.getElementById('atencionBadge');
+      const atencionSub = document.getElementById('atencionSub');
 
-      // Ordenar: vencidas primero, luego por días restantes
-      const atencionOts = [...ots].filter(o => otPct(o.id) < 100).sort((a, b) => {
-        const ovA = isOverdue(a), ovB = isOverdue(b);
-        if (ovA && !ovB) return -1; if (!ovA && ovB) return 1;
-        if (a.limite && b.limite) return parseDate(a.limite) - parseDate(b.limite);
-        if (a.limite) return -1; if (b.limite) return 1;
-        return 0;
-      });
+      const otsCriticas = ots.filter(o => !isOTClosed(o) && (isOverdue(o) || (o.limite && diffDays(tod, parseDate(o.limite)) >= 0 && diffDays(tod, parseDate(o.limite)) <= 3)))
+        .sort((a, b) => {
+          const rA = a.limite ? diffDays(tod, parseDate(a.limite)) : 9999;
+          const rB = b.limite ? diffDays(tod, parseDate(b.limite)) : 9999;
+          return rA - rB;
+        });
+
+      const otsSegui = ots.filter(o => !isOTClosed(o) && !otsCriticas.find(c => c.id === o.id))
+        .sort((a, b) => {
+          if (a.limite && b.limite) return parseDate(a.limite) - parseDate(b.limite);
+          if (a.limite) return -1; if (b.limite) return 1;
+          // Fallback: más recientes primero
+          return (b.createdAt || '').localeCompare(a.createdAt || '');
+        });
 
       if (badge) {
-        badge.textContent = criticas.length > 0 ? `⚠ ${criticas.length} OT${criticas.length > 1 ? 's' : ''} CRÍTICA${criticas.length > 1 ? 'S' : ''}` : '✓ SIN CRÍTICOS';
+        badge.textContent = criticas.length > 0 ? `🚨 ${criticas.length} OT${criticas.length > 1 ? 's' : ''} CRÍTICA${criticas.length > 1 ? 'S' : ''}` : '✓ SIN CRÍTICOS';
         badge.style.background = criticas.length > 0 ? 'rgba(224,92,58,0.2)' : 'rgba(0,255,136,0.1)';
         badge.style.borderColor = criticas.length > 0 ? 'rgba(224,92,58,0.4)' : 'rgba(0,255,136,0.25)';
         badge.style.color = criticas.length > 0 ? '#ff8060' : 'var(--hacker)';
       }
 
-      if (atencion) {
-        if (!atencionOts.length) {
-          var _nm = currentEngineer ? currentEngineer.name.toUpperCase() : 'INGENIERO';
-          atencion.innerHTML = '<div style="text-align:center;padding:24px;color:var(--hacker);font-family:\'Share Tech Mono\',monospace;font-size:0.8rem;">✓ TODAS LAS OTs ESTÁN COMPLETADAS · EXCELENTE TRABAJO ING. ' + _nm + '</div>';
-        } else {
-          atencion.innerHTML = atencionOts.map(ot => {
-            const pct = otPct(ot.id), overdue = isOverdue(ot);
-            let rem = -999, remTxt = 'Sin fecha', urgBg, urgColor, urgBorder, urgLabel;
-            if (ot.limite) {
-              rem = diffDays(tod, parseDate(ot.limite));
-              remTxt = fmtDate(parseDate(ot.limite));
-            }
-            if (overdue) { urgBg = 'rgba(176,32,32,0.15)'; urgColor = '#ff6b6b'; urgBorder = 'rgba(176,32,32,0.4)'; urgLabel = `🔴 VENCIDA hace ${Math.abs(rem)}d`; }
-            else if (rem <= 3) { urgBg = 'rgba(224,92,58,0.12)'; urgColor = '#ff8060'; urgBorder = 'rgba(224,92,58,0.3)'; urgLabel = `⚠ ENTREGA en ${rem}d`; }
-            else if (rem <= 7) { urgBg = 'rgba(245,166,35,0.1)'; urgColor = '#f5a623'; urgBorder = 'rgba(245,166,35,0.3)'; urgLabel = `🟡 ${rem} días`; }
-            else { urgBg = 'transparent'; urgColor = 'var(--text-dim)'; urgBorder = 'var(--dark-border)'; urgLabel = rem >= 0 ? `🟢 ${rem}d` : '—'; }
+      if (atencionSub) {
+        atencionSub.textContent = '▸ ' + (criticas.length > 0 ? criticas.length + ' OT(s) CRÍTICAS + ' + otsSegui.length + ' EN SEGUIMIENTO' : 'TODAS LAS OTs AL DÍA');
+      }
 
-            // Siguiente etapa bloqueada
-            let nextEtapa = '';
-            for (const f of WF_FIELDS) {
-              const v = (ot[f.key] || '').toLowerCase();
-              if (!v || !DONE_VALS.includes(v)) { nextEtapa = f.label; break; }
-            }
+      function _renderOtItem(ot) {
+        const pct = otPct(ot.id), overdue = isOverdue(ot);
+        let rem = -999, remTxt = 'Sin fecha', urgBg, urgColor, urgBorder, urgLabel;
+        if (ot.limite) {
+          rem = diffDays(tod, parseDate(ot.limite));
+          remTxt = fmtDate(parseDate(ot.limite));
+        }
+        if (overdue) { urgBg = 'rgba(176,32,32,0.15)'; urgColor = '#ff6b6b'; urgBorder = 'rgba(176,32,32,0.4)'; urgLabel = `🔴 VENCIDA hace ${Math.abs(rem)}d`; }
+        else if (rem <= 3 && rem >= 0) { urgBg = 'rgba(224,92,58,0.12)'; urgColor = '#ff8060'; urgBorder = 'rgba(224,92,58,0.3)'; urgLabel = rem === 0 ? '🚨 VENCE HOY' : `⚠ ENTREGA en ${rem}d`; }
+        else if (rem <= 7 && rem >= 0) { urgBg = 'rgba(245,166,35,0.1)'; urgColor = '#f5a623'; urgBorder = 'rgba(245,166,35,0.3)'; urgLabel = `🟡 ${rem} días`; }
+        else { urgBg = 'transparent'; urgColor = 'var(--text-dim)'; urgBorder = 'var(--dark-border)'; urgLabel = rem >= 0 ? `🟢 ${rem}d` : '—'; }
 
-            return `<div class="ot-quick-item" onclick="openDetail('${ot.id}')" style="border-color:${urgBorder};background:${urgBg};">
-        <div class="ot-quick-stripe" style="background:${overdue ? '#e05c3a' : rem <= 3 ? '#f47920' : rem <= 7 ? '#f5a623' : '#1a6fd4'};"></div>
+        let nextEtapa = '';
+        for (const f of WF_FIELDS) {
+          const v = (ot[f.key] || '').toLowerCase();
+          if (!v || !DONE_VALS.includes(v)) { nextEtapa = f.label; break; }
+        }
+
+        return `<div class="ot-quick-item" onclick="openDetail('${ot.id}')" style="border-color:${urgBorder};background:${urgBg};">
+        <div class="ot-quick-stripe" style="background:${overdue ? '#e05c3a' : rem >= 0 && rem <= 3 ? '#f47920' : rem >= 0 && rem <= 7 ? '#f5a623' : '#1a6fd4'};"></div>
         <div class="ot-quick-body">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div class="ot-quick-num">${escHtml(ot.ot || '—')}</div>
@@ -4521,42 +4560,114 @@
           <div style="font-size:0.65rem;color:var(--text-dim);margin-top:2px;">${ot.idNum ? 'ID: ' + ot.idNum : ''}</div>
         </div>
       </div>`;
-          }).join('');
-        }
-      } // end if(atencion)
+      }
 
-      // ── ALERTAS VENCIMIENTO (14 días) ──
+      if (atencion) {
+        if (!otsCriticas.length && !otsSegui.length) {
+          var _nm = currentEngineer ? currentEngineer.name.toUpperCase() : 'INGENIERO';
+          var _closedCount = ots.filter(o => isOTClosed(o)).length;
+          atencion.innerHTML = '<div style="text-align:center;padding:24px;color:var(--hacker);font-family:\'Share Tech Mono\',monospace;font-size:0.8rem;">✓ TODAS LAS OTs ESTÁN COMPLETADAS (' + _closedCount + ') · EXCELENTE TRABAJO ING. ' + _nm + '</div>';
+        } else {
+          let html = '';
+          // Sección críticas
+          if (otsCriticas.length) {
+            html += `<div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:#ff8060;letter-spacing:1.5px;padding:4px 2px 6px;display:flex;align-items:center;gap:8px;"><span style="flex:1;height:1px;background:rgba(224,92,58,0.3);display:block;"></span>🚨 CRÍTICAS — ACCIÓN INMEDIATA<span style="flex:1;height:1px;background:rgba(224,92,58,0.3);display:block;"></span></div>`;
+            html += otsCriticas.map(_renderOtItem).join('');
+          }
+          // Sección seguimiento
+          if (otsSegui.length) {
+            html += `<div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--text-dim);letter-spacing:1.5px;padding:${otsCriticas.length ? '12px' : '4px'} 2px 6px;display:flex;align-items:center;gap:8px;"><span style="flex:1;height:1px;background:var(--dark-border);display:block;"></span>📋 SEGUIMIENTO<span style="flex:1;height:1px;background:var(--dark-border);display:block;"></span></div>`;
+            html += otsSegui.map(_renderOtItem).join('');
+          }
+          atencion.innerHTML = html;
+        }
+      }
+
+      // ── CALENDARIO DE ENTREGAS — solo OTs con levantamiento o implementación agendada con fecha ──
       const alertList = document.getElementById('alertasList');
-      const alertOts = [...ots]
-        .filter(o => o.limite && otPct(o.id) < 100)
-        .map(o => ({ ...o, rem: diffDays(tod, parseDate(o.limite)) }))
-        .sort((a, b) => a.rem - b.rem)
-        .slice(0, 8);
+      const alertSub = document.getElementById('alertasSub');
+
+      // Construir entradas del calendario: levantamientos agendados + implementaciones agendadas
+      const calEntradas = [];
+      ots.forEach(o => {
+        if (isOTClosed(o)) return;
+        // Levantamiento agendado con fecha
+        if (o.levantamiento === 'Agendada' && o.levantamiento_fecha) {
+          calEntradas.push({
+            ...o,
+            _calFecha: o.levantamiento_fecha,
+            _calHora: o.levantamiento_hora || '',
+            _calTipo: 'Levantamiento',
+            _calIcon: '📅',
+            _calColor: '#f5a623',
+          });
+        }
+        // Implementación agendada con fecha
+        if (o.implementacion === 'Agendada' && o.impl_fecha) {
+          calEntradas.push({
+            ...o,
+            _calFecha: o.impl_fecha,
+            _calHora: o.impl_hora || '',
+            _calTipo: 'Implementación',
+            _calIcon: '🔧',
+            _calColor: '#6db3ff',
+          });
+        }
+      });
+
+      // Ordenar por fecha más próxima primero
+      calEntradas.sort((a, b) => {
+        const dA = parseDate(a._calFecha), dB = parseDate(b._calFecha);
+        if (dA && dB) return dA - dB;
+        if (dA) return -1; if (dB) return 1;
+        return 0;
+      });
+
+      const calEntradasShow = calEntradas.slice(0, 12);
+
+      if (alertSub) {
+        const pasadas = calEntradas.filter(e => parseDate(e._calFecha) < tod).length;
+        const hoy = calEntradas.filter(e => { const d = parseDate(e._calFecha); return d && d.getTime() === tod.getTime(); }).length;
+        const futuras = calEntradas.length - pasadas - hoy;
+        alertSub.textContent = '▸ ' + calEntradas.length + ' cita' + (calEntradas.length !== 1 ? 's' : '') + ' agendada' + (calEntradas.length !== 1 ? 's' : '')
+          + (hoy > 0 ? ' · ' + hoy + ' HOY' : '')
+          + (futuras > 0 ? ' · ' + futuras + ' próxima' + (futuras > 1 ? 's' : '') : '')
+          + (pasadas > 0 ? ' · ' + pasadas + ' pasada' + (pasadas > 1 ? 's' : '') : '');
+      }
 
       if (alertList) {
-        if (!alertOts.length) {
-          alertList.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:0.78rem;font-family:'Share Tech Mono',monospace;">SIN FECHAS REGISTRADAS</div>`;
+        if (!calEntradasShow.length) {
+          alertList.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-dim);font-size:0.78rem;font-family:'Share Tech Mono',monospace;">📅 SIN CITAS AGENDADAS<br><span style="font-size:0.68rem;opacity:0.6;margin-top:6px;display:block;">Agenda un levantamiento o implementación en el detalle de una OT</span></div>`;
         } else {
-          alertList.innerHTML = alertOts.map(ot => {
-            const overdue = ot.rem < 0;
-            const col = overdue ? '#e05c3a' : ot.rem <= 3 ? '#ff8060' : ot.rem <= 7 ? '#f5a623' : '#00ff88';
-            const bgCol = overdue ? 'rgba(176,32,32,0.1)' : ot.rem <= 3 ? 'rgba(224,92,58,0.08)' : ot.rem <= 7 ? 'rgba(245,166,35,0.08)' : 'rgba(0,255,136,0.05)';
-            const icon = overdue ? '🔴' : ot.rem <= 3 ? '🚨' : ot.rem <= 7 ? '⏰' : '📅';
-            const txt = overdue ? `Venció hace ${Math.abs(ot.rem)}d` : ot.rem === 0 ? 'Vence HOY' : `${ot.rem}d restantes`;
-            return `<div onclick="openDetail('${ot.id}')" style="display:flex;align-items:center;gap:10px;background:${bgCol};border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='${col}40'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
-        <div style="font-size:1.2rem;flex-shrink:0;">${icon}</div>
+          alertList.innerHTML = calEntradasShow.map(ot => {
+            const calD = parseDate(ot._calFecha);
+            const rem = calD ? diffDays(tod, calD) : null;
+            const isPast = rem !== null && rem < 0;
+            const isToday = rem === 0;
+            const col = isPast ? 'var(--text-dim)' : isToday ? '#00ff88' : rem !== null && rem <= 3 ? '#ff8060' : rem !== null && rem <= 7 ? '#f5a623' : ot._calColor;
+            const bgCol = isPast ? 'rgba(255,255,255,0.02)' : isToday ? 'rgba(0,255,136,0.07)' : rem !== null && rem <= 3 ? 'rgba(224,92,58,0.07)' : rem !== null && rem <= 7 ? 'rgba(245,166,35,0.06)' : 'transparent';
+            const borderCol = isPast ? 'rgba(255,255,255,0.04)' : isToday ? 'rgba(0,255,136,0.25)' : rem !== null && rem <= 3 ? 'rgba(224,92,58,0.25)' : 'rgba(255,255,255,0.05)';
+            const icon = isPast ? '⬤' : isToday ? '🟢' : rem !== null && rem <= 3 ? '🚨' : ot._calIcon;
+            const txt = isPast ? `hace ${Math.abs(rem)}d` : isToday ? 'HOY' : rem !== null ? `en ${rem}d` : '—';
+            const ownerBadge = (ot._owner && currentEngineer && currentEngineer.isJefe) ? `<span style="font-size:0.6rem;background:rgba(26,111,212,0.15);border:1px solid rgba(26,111,212,0.3);border-radius:4px;padding:1px 6px;color:#6db3ff;margin-left:4px;">${engInitials(ot._owner)}</span>` : '';
+            return `<div onclick="openDetail('${ot.id}')" style="display:flex;align-items:center;gap:10px;background:${bgCol};border:1px solid ${borderCol};border-radius:8px;padding:10px 12px;cursor:pointer;transition:all 0.2s;${isPast ? 'opacity:0.55;' : ''}" onmouseover="this.style.borderColor='${col}50';this.style.opacity='1'" onmouseout="this.style.borderColor='${borderCol}';this.style.opacity='${isPast ? '0.55' : '1'}'">
+        <div style="font-size:1.1rem;flex-shrink:0;color:${col};">${icon}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:0.95rem;letter-spacing:1px;color:var(--text);">${escHtml(ot.ot || '—')}</div>
-          <div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px;">${escHtml(ot.cliente || '—')}</div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:0.95rem;letter-spacing:1px;color:var(--text);">${escHtml(ot.ot || '—')}${ownerBadge}</div>
+            <span style="font-size:0.58rem;font-weight:700;padding:1px 6px;border-radius:8px;background:${ot._calColor}18;color:${ot._calColor};border:1px solid ${ot._calColor}35;white-space:nowrap;">${ot._calTipo}</span>
+          </div>
+          <div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px;">${escHtml(ot.cliente || '—')}${ot.servicio ? ' · ' + escHtml(ot.servicio) : ''}</div>
+          ${ot._calHora ? `<div style="font-size:0.65rem;color:${col};margin-top:2px;font-family:'Share Tech Mono',monospace;">🕐 ${ot._calHora}</div>` : ''}
         </div>
         <div style="text-align:right;flex-shrink:0;">
-          <div style="font-family:'Share Tech Mono',monospace;font-size:0.72rem;font-weight:700;color:${col};">${txt}</div>
-          <div style="font-size:0.68rem;color:var(--text-dim);margin-top:1px;">${fmtDate(parseDate(ot.limite))}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.78rem;font-weight:700;color:${col};">${txt}</div>
+          <div style="font-size:0.68rem;color:var(--text-dim);margin-top:1px;">${fmtDate(calD)}</div>
         </div>
       </div>`;
           }).join('');
         }
-      } // end if(alertList)
+      }
 
       // ── EMBUDO INGENIERO ──
       var engEmbudoCard = document.getElementById('engEmbudoCard');
@@ -4584,18 +4695,18 @@
         }
       }
 
-      // ── DONUT ──
-      const activas2 = ots.filter(o => { const d = otData[o.id]; return d && d.tasks && d.tasks.some(t => t.status === 'En Proceso'); }).length;
+      // ── DONUT — Distribución basada en estado del flujo ──
+      // En Proceso: OTs activas no cerradas y no vencidas
+      const otsEnProceso = ots.filter(o => !isOTClosed(o) && !isOverdue(o)).length;
       const segs = [
-        { label: 'En Proceso', val: activas2, color: '#f47920' },
+        { label: 'En Proceso', val: otsEnProceso, color: '#f47920' },
         { label: 'Completadas', val: completas, color: '#00ff88' },
         { label: 'Vencidas', val: vencidas, color: '#e05c3a' },
-        { label: 'Pendientes', val: Math.max(0, total - activas2 - completas - vencidas), color: '#1a6fd4' },
+        { label: 'Sin asignar', val: Math.max(0, total - otsEnProceso - completas - vencidas), color: '#1a6fd4' },
       ];
       var _g_donutTotal = document.getElementById('donutTotal'); if (_g_donutTotal) _g_donutTotal.textContent = total;
       const circ = 2 * Math.PI * 50;
       const segIds = ['donutSeg1', 'donutSeg2', 'donutSeg3', 'donutSeg4'];
-      // Reset visual antes de re-animar para evitar transiciones pegadas
       segIds.forEach(id => { const el = document.getElementById(id); if (el) { el.style.transition = 'none'; el.style.strokeDasharray = '0 ' + circ; el.style.strokeDashoffset = circ / 4; } });
       const _doNutSvg = document.getElementById('donutSvg'); if (_doNutSvg) _doNutSvg.getBoundingClientRect();
       let offset = 0;
@@ -4633,12 +4744,18 @@
     function renderPanel() {
       const q = (document.getElementById('searchInput').value || '').toLowerCase();
       const grid = document.getElementById('otGrid');
-      const list = q ? ots.filter(o => (o.ot || '').toLowerCase().includes(q) || (o.cliente || '').toLowerCase().includes(q) || (o.idNum || '').toLowerCase().includes(q) || (o.servicio || '').toLowerCase().includes(q) || (o.detonacion || '').includes(q) || (o.limite || '').includes(q)) : ots;
+      // Ordenar por más reciente primero (createdAt desc, o por id como fallback)
+      const sorted = [...ots].sort((a, b) => {
+        // Intentar ordenar por createdAt si existe como string comparable
+        const aT = a.createdAt || a.id || '', bT = b.createdAt || b.id || '';
+        return bT.localeCompare(aT);
+      });
+      const list = q ? sorted.filter(o => (o.ot || '').toLowerCase().includes(q) || (o.cliente || '').toLowerCase().includes(q) || (o.idNum || '').toLowerCase().includes(q) || (o.servicio || '').toLowerCase().includes(q) || (o.detonacion || '').includes(q) || (o.limite || '').includes(q)) : sorted;
       const total = ots.length;
-      const activas = ots.filter(o => { const d = otData[o.id]; return d && d.tasks && d.tasks.some(t => t.status === 'En Proceso'); }).length;
+      const activas = ots.filter(o => !isOTClosed(o) && !isOverdue(o)).length;
       document.getElementById('psTotal').textContent = total;
       document.getElementById('psActivas').textContent = activas;
-      document.getElementById('psCompletas').textContent = ots.filter(o => otPct(o.id) === 100 && (otData[o.id]?.tasks?.length > 0)).length;
+      document.getElementById('psCompletas').textContent = ots.filter(o => isOTClosed(o)).length;
       document.getElementById('psVencidas').textContent = ots.filter(o => isOverdue(o)).length;
 
       if (!list.length) { grid.innerHTML = `<div class="ot-empty"><div class="icon">📋</div><p>No se encontraron OTs.</p></div>`; return; }
@@ -4649,7 +4766,8 @@
         let dlChip = '';
         if (ot.limite) {
           const end = parseDate(ot.limite), now = new Date(), tod = new Date(now.getFullYear(), now.getMonth(), now.getDate()), rem = diffDays(tod, end);
-          if (pct === 100) dlChip = `<span class="deadline-chip" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)">✓ Completa</span>`;
+          const closed = isOTClosed(ot);
+          if (closed || pct === 100) dlChip = `<span class="deadline-chip" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)">✓ ${closed ? 'Entregada' : 'Completa'}</span>`;
           else if (rem < 0) dlChip = `<span class="deadline-chip" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)">🔴 ${Math.abs(rem)}d vencida</span>`;
           else if (rem <= 3) dlChip = `<span class="deadline-chip" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)">⚠ ${rem}d</span>`;
           else if (rem <= 7) dlChip = `<span class="deadline-chip" style="background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border)">🟡 ${rem}d</span>`;
@@ -5470,13 +5588,9 @@
       }).join('');
     }
 
-    /* pageshow: recargar datos cuando el navegador restaura página desde caché */
-    window.addEventListener('pageshow', function (e) {
-      // Firebase actualiza mediante listeners on() por lo que el back/forward cache mantiene todo al día.
-    });
+
 
     /* INIT */
-    // Restaurar sesión si ya había una activa (recarga de página)
     if (!_restoreSession()) {
       showView('Dashboard');
     }
