@@ -1117,6 +1117,182 @@ window.addEventListener("unhandledrejection", function(e) {
       }
 
       // Stats
+      var total     = ots.length;
+      var activas   = ots.filter(function(o) { return !isOTClosed(o) && !isOverdue(o); }).length;
+      var completas = ots.filter(function(o) { return isOTClosed(o); }).length;
+      var vencidas  = ots.filter(function(o) { return isOverdue(o); }).length;
+      document.getElementById('psTotal').textContent     = total;
+      document.getElementById('psActivas').textContent   = activas;
+      document.getElementById('psCompletas').textContent = completas;
+      document.getElementById('psVencidas').textContent  = vencidas;
+
+      if (!list.length) {
+        var emptyBtn = panelStatusFilter !== 'all'
+          ? '<button class="btn btn-ghost btn-sm" onclick="setPanelFilter(\'all\',document.getElementById(\'pfAll\'))" style="margin-top:12px;">Ver todas</button>'
+          : '';
+        grid.innerHTML = '<div class="ot-empty"><div class="icon">\u{1F4CB}</div><p>No se encontraron OTs' +
+          (panelStatusFilter !== 'all' ? ' con este filtro' : '') + '.</p>' + emptyBtn + '</div>';
+        return;
+      }
+
+      var PIPE_STAGES = [
+        { key: 'levantamiento', lbl: 'Lev.' },
+        { key: 'diseno',        lbl: 'Dis.' },
+        { key: 'construccion',  lbl: 'Obra' },
+        { key: 'entregado',     lbl: 'Entrega' },
+        { key: 'liberado',      lbl: 'Lib.' }
+      ];
+
+      grid.innerHTML = list.map(function(ot) {
+        var pct     = otPct(ot.id);
+        var overdue = isOverdue(ot);
+        var closed  = isOTClosed(ot);
+
+        // Stripe lateral
+        var stripeCol = closed ? '#1a7a45' : overdue ? '#b02020' : '#1256a8';
+
+        // Badge de estado
+        var statusLabel, statusClass;
+        if (closed) {
+          var isCancelled = ((ot.entregado || '').toLowerCase().includes('cancel') || (ot.liberado || '').toLowerCase().includes('cancel'));
+          statusLabel = isCancelled ? 'Cancelada' : 'Completada';
+          statusClass = 'ot-status-done';
+        } else if (overdue) {
+          statusLabel = '\u{1F534} Vencida';
+          statusClass = 'ot-status-overdue';
+        } else {
+          statusLabel = 'En proceso';
+          statusClass = 'ot-status-active';
+        }
+
+        // Chip de días restantes
+        var dlChip = '';
+        if (ot.limite && !closed) {
+          var end = parseDate(ot.limite);
+          var rem = diffDays(tod, end);
+          if (rem < 0)        dlChip = '<span class="dl-chip dl-overdue">' + Math.abs(rem) + 'd vencida</span>';
+          else if (rem === 0) dlChip = '<span class="dl-chip dl-urgent">\u{1F6A8} Hoy</span>';
+          else if (rem <= 3)  dlChip = '<span class="dl-chip dl-urgent">\u26A0 ' + rem + 'd</span>';
+          else if (rem <= 7)  dlChip = '<span class="dl-chip dl-warn">\u{1F7E1} ' + rem + 'd</span>';
+          else                dlChip = '<span class="dl-chip dl-ok">\u{1F7E2} ' + rem + 'd</span>';
+        }
+
+        // Badge propietario (solo Jefe)
+        var ownerBadge = (ot._owner && currentEngineer && currentEngineer.isJefe)
+          ? '<span class="ot2-owner-badge">' + engInitials(ot._owner) + '</span>'
+          : '';
+
+        // Pipeline visual
+        var pipeHtml = PIPE_STAGES.map(function(f, i) {
+          var val    = ot[f.key] || '';
+          var isDone = val && DONE_VALS.includes(val.toLowerCase());
+          var col    = wfColor(val);
+          var dotStyle = isDone
+            ? 'background:' + col.color + ';border-color:' + col.color
+            : val ? 'border-color:' + col.border : 'border-color:#d0d8ea;opacity:0.38';
+          var conn = i < PIPE_STAGES.length - 1
+            ? '<div class="p2-conn' + (isDone ? ' done' : '') + '"></div>'
+            : '';
+          return '<div class="p2-stg" title="' + f.lbl + ': ' + (val || 'Sin asignar') + '">' +
+            '<div class="p2-dot" style="' + dotStyle + '"></div>' +
+            '<span>' + f.lbl + '</span>' +
+            '</div>' + conn;
+        }).join('');
+
+        // Color progreso
+        var progColor = pct >= 80 ? '#1a7a45' : pct >= 50 ? '#f5a623' : '#1256a8';
+
+        // Fechas
+        var detFmt  = ot.detonacion ? fmtDate(parseDate(ot.detonacion)) : '\u2014';
+        var limFmt  = ot.limite ? fmtDate(parseDate(ot.limite)) : 'Sin fecha';
+        var limClass = (overdue && !closed) ? ' otkv2-date-red' : '';
+
+        // ── Construcción del HTML (comillas dobles → sin escapes de comilla simple) ──
+        var id = ot.id;
+        return [
+          '<div class="ot-card" onclick="openDetail(\'' + id + '\')">',
+            '<div class="ot-card-lstripe" style="background:' + stripeCol + '"></div>',
+            '<div class="ot-card-right">',
+              '<div class="ot-card-main">',
+                '<div class="otkv2-head">',
+                  '<div class="otkv2-identity">',
+                    '<div class="ot-num">' + escHtml(ot.ot || '\u2014') + '</div>',
+                    '<div class="ot-client">' + escHtml(ot.cliente || '\u2014') + '</div>',
+                    (ot.servicio ? '<div class="otkv2-srv">\u2699 ' + escHtml(ot.servicio) + '</div>' : ''),
+                  '</div>',
+                  '<div class="otkv2-badges">',
+                    '<span class="otkv2-sbadge ' + statusClass + '">' + statusLabel + '</span>',
+                    ownerBadge,
+                  '</div>',
+                '</div>',
+                '<div class="otkv2-dates">',
+                  '<span>\u{1F4C5} ' + detFmt + '</span>',
+                  '<span class="otkv2-date-arrow">\u203A</span>',
+                  '<span class="' + limClass + '">\u{1F3C1} ' + limFmt + '</span>',
+                  dlChip,
+                '</div>',
+                '<div class="otkv2-pipe">' + pipeHtml + '</div>',
+                '<div class="otkv2-prog">',
+                  '<div class="otkv2-prog-hdr"><span>Checklist</span><strong style="color:' + progColor + '">' + pct + '%</strong></div>',
+                  '<div class="otkv2-prog-track"><div class="otkv2-prog-fill" style="width:' + pct + '%;background:' + progColor + '"></div></div>',
+                '</div>',
+              '</div>',
+              '<div class="ot-card-footer" onclick="event.stopPropagation()">',
+                '<button class="btn btn-ghost btn-sm" onclick="duplicateOT(\'' + id + '\')">Duplicar</button>',
+                '<button class="btn btn-danger btn-sm" onclick="deleteOT(\'' + id + '\')">Eliminar</button>',
+                '<button class="btn btn-blue btn-sm" onclick="openDetail(\'' + id + '\')">Ver \u2192</button>',
+              '</div>',
+            '</div>',
+          '</div>'
+        ].join('');
+      }).join('');
+    }
+
+    function OLD_renderPanel_DUPLICATE_REMOVED() { return;
+      var q = (document.getElementById('searchInput').value || '').toLowerCase();
+      var grid = document.getElementById('otGrid');
+      var sortEl = document.getElementById('panelSort');
+      var sortMode = sortEl ? sortEl.value : 'reciente';
+      var now = new Date(), tod = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      // Base sort: más reciente primero
+      var sorted = ots.slice().sort(function(a, b) {
+        var aT = a.createdAt || a.id || '', bT = b.createdAt || b.id || '';
+        return bT.localeCompare(aT);
+      });
+      if (sortMode === 'limite') {
+        sorted.sort(function(a, b) {
+          if (a.limite && b.limite) return parseDate(a.limite) - parseDate(b.limite);
+          if (a.limite) return -1; if (b.limite) return 1; return 0;
+        });
+      } else if (sortMode === 'avance_asc') {
+        sorted.sort(function(a, b) { return otPct(a.id) - otPct(b.id); });
+      } else if (sortMode === 'avance_desc') {
+        sorted.sort(function(a, b) { return otPct(b.id) - otPct(a.id); });
+      } else if (sortMode === 'ot') {
+        sorted.sort(function(a, b) { return (a.ot || '').localeCompare(b.ot || ''); });
+      }
+
+      // Filtro de búsqueda
+      var list = q ? sorted.filter(function(o) {
+        return (o.ot || '').toLowerCase().includes(q) ||
+          (o.cliente || '').toLowerCase().includes(q) ||
+          (o.idNum || '').toLowerCase().includes(q) ||
+          (o.servicio || '').toLowerCase().includes(q) ||
+          (o.detonacion || '').includes(q) ||
+          (o.limite || '').includes(q);
+      }) : sorted;
+
+      // Filtro de estado (chips)
+      if (panelStatusFilter === 'proceso') {
+        list = list.filter(function(o) { return !isOTClosed(o) && !isOverdue(o); });
+      } else if (panelStatusFilter === 'vencidas') {
+        list = list.filter(function(o) { return isOverdue(o); });
+      } else if (panelStatusFilter === 'completas') {
+        list = list.filter(function(o) { return isOTClosed(o); });
+      }
+
+      // Stats
       var total    = ots.length;
       var activas  = ots.filter(function(o) { return !isOTClosed(o) && !isOverdue(o); }).length;
       var completas = ots.filter(function(o) { return isOTClosed(o); }).length;
