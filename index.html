@@ -11,6 +11,8 @@
   <script src="assets/firebase/firebase-app-compat.js"></script>
   <script src="assets/firebase/firebase-database-compat.js"></script>
 
+  <!-- Favicon MCM Business Tech Co -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='og' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23f47920'/%3E%3Cstop offset='100%25' stop-color='%23ff9a45'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='%23060d1a'/%3E%3Crect x='2' y='2' width='28' height='28' rx='5' fill='url(%23og)'/%3E%3Crect x='6' y='20' width='3' height='6' rx='1' fill='rgba(0,0,0,0.18)'/%3E%3Crect x='23' y='20' width='3' height='6' rx='1' fill='rgba(0,0,0,0.18)'/%3E%3Ctext x='16' y='21.5' font-family='Arial Black%2CImpact%2Csans-serif' font-size='11.5' font-weight='900' fill='white' text-anchor='middle' letter-spacing='0.3'%3EMCM%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 
 </head>
@@ -135,11 +137,7 @@
               <div style="font-size:0.84rem;font-weight:600;color:var(--mcm-orange-lt);" id="dashEngName">—</div>
             </div>
           </div>
-          <div id="btnExportarExcelWrap" style="display:none;align-items:center;">
-            <button onclick="exportOTsToExcel()" style="background:#1a6fd4;border:1px solid #6db3ff;color:#fff;padding:8px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;box-shadow: 0 4px 12px rgba(26,111,212,0.4);display:flex;align-items:center;gap:6px;transition:all 0.2s;" onmouseover="this.style.background='#1256a8';this.style.transform='translateY(-2px)';" onmouseout="this.style.background='#1a6fd4';this.style.transform='none';">
-              📥 Exportar
-            </button>
-          </div>
+
           <div style="text-align:right;">
             <div id="dashDate" style="font-size:0.76rem;color:rgba(255,255,255,0.55);"></div>
             <div id="dashTime"
@@ -201,9 +199,7 @@
           style="font-family:'Bebas Neue',sans-serif;letter-spacing:3px;font-size:0.9rem;color:var(--text-dim);margin:22px 0 10px;display:flex;align-items:center;gap:10px;">
           👑 RESUMEN EJECUTIVO DEL EQUIPO
           <span style="flex:1;height:1px;background:var(--dark-border);display:block;"></span>
-          <button onclick="exportJefeReport()"
-            style="background:rgba(244,121,32,0.12);border:1px solid rgba(244,121,32,0.3);border-radius:8px;padding:6px 14px;font-size:0.72rem;font-weight:600;color:var(--mcm-orange-lt);cursor:pointer;font-family:'DM Sans',sans-serif;">📊
-            Exportar</button>
+
         </div>
         <div id="teamKpiRow"
           style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px;">
@@ -373,31 +369,44 @@
         <div id="engFilterWrap" class="eng-filter" style="display:none"></div>
         <div class="panel-toolbar">
           <h2>Órdenes de Trabajo</h2>
-          <div style="display:flex;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <select class="pf-sort" id="panelSort" onchange="renderPanel()" title="Ordenar OTs">
+              <option value="reciente">↓ Más recientes</option>
+              <option value="limite">↑ Fecha límite</option>
+              <option value="avance_asc">↑ Menor avance</option>
+              <option value="avance_desc">↓ Mayor avance</option>
+              <option value="ot">OT #</option>
+            </select>
             <button class="btn" onclick="openNewModal()">+ Nueva OT</button>
           </div>
         </div>
         <div class="panel-stats">
-          <div class="pstat">
+          <div class="pstat" onclick="setPanelFilter('all',document.getElementById('pfAll'))" style="cursor:pointer" title="Ver todas las OTs">
             <div class="pstat-num" id="psTotal">0</div>
             <div class="pstat-label">Total OTs</div>
           </div>
-          <div class="pstat orange">
+          <div class="pstat orange" onclick="setPanelFilter('proceso',document.getElementById('pfProceso'))" style="cursor:pointer" title="Filtrar: En Proceso">
             <div class="pstat-num" id="psActivas">0</div>
             <div class="pstat-label">En Proceso</div>
           </div>
-          <div class="pstat green">
+          <div class="pstat green" onclick="setPanelFilter('completas',document.getElementById('pfCompletas'))" style="cursor:pointer" title="Filtrar: Completadas">
             <div class="pstat-num" id="psCompletas">0</div>
             <div class="pstat-label">Completadas</div>
           </div>
-          <div class="pstat red">
+          <div class="pstat red" onclick="setPanelFilter('vencidas',document.getElementById('pfVencidas'))" style="cursor:pointer" title="Filtrar: Vencidas">
             <div class="pstat-num" id="psVencidas">0</div>
             <div class="pstat-label">Vencidas</div>
           </div>
         </div>
+        <div class="panel-filter-bar">
+          <button class="pf-chip active" id="pfAll" onclick="setPanelFilter('all',this)">Todas</button>
+          <button class="pf-chip" id="pfProceso" onclick="setPanelFilter('proceso',this)">En Proceso</button>
+          <button class="pf-chip pf-chip-warn" id="pfVencidas" onclick="setPanelFilter('vencidas',this)">⚠ Vencidas</button>
+          <button class="pf-chip pf-chip-ok" id="pfCompletas" onclick="setPanelFilter('completas',this)">✓ Completadas</button>
+        </div>
         <div class="search-row">
           <input class="search-input" id="searchInput" type="text"
-            placeholder="Buscar por OT, cliente, servicio, ID o fecha..." oninput="renderPanel()" />
+            placeholder="🔍  Buscar por OT, cliente, servicio, ID o fecha…" oninput="renderPanel()" autocomplete="off" />
         </div>
         <div class="ot-grid" id="otGrid"></div>
       </div>

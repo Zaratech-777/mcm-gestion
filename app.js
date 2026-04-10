@@ -201,7 +201,7 @@ window.addEventListener("unhandledrejection", function(e) {
 
     function switchEngineer() {
       fbListeners.forEach(function(ref) { ref.off(); }); fbListeners = [];
-      currentEngineer = null; currentOT = null; ots = []; otData = {}; jefeFilter = 'all'; calWeekOffset = 0; sessionStorage.removeItem(STORE_ENG);
+      currentEngineer = null; currentOT = null; ots = []; otData = {}; jefeFilter = 'all'; panelStatusFilter = 'all'; calWeekOffset = 0; sessionStorage.removeItem(STORE_ENG);
       var badge = document.getElementById('engBadge'); if (badge) badge.style.display = 'none';
       var fsb = document.getElementById('floatSaveBtn'); if (fsb) fsb.classList.remove('visible', 'saved');
       _renderJefeUI();
@@ -252,6 +252,7 @@ window.addEventListener("unhandledrejection", function(e) {
       saveAll();
     }
     var jefeFilter = 'all';
+    var panelStatusFilter = 'all'; // 'all' | 'proceso' | 'vencidas' | 'completas'
 
     function _loadAllEngineers() {
       _loadAllEngineersFromObj(fbStorageCache);
@@ -281,11 +282,9 @@ window.addEventListener("unhandledrejection", function(e) {
       var banner = document.getElementById('jefeBanner');
       var wrap = document.getElementById('engFilterWrap');
       var lbl = document.getElementById('jefeBannerLabel');
-      var btnExcel = document.getElementById('btnExportarExcelWrap');
       var isJefe = !!(currentEngineer && currentEngineer.isJefe);
       if (banner) banner.style.display = isJefe ? 'flex' : 'none';
       if (wrap) wrap.style.display = isJefe ? 'flex' : 'none';
-      if (btnExcel) btnExcel.style.display = isJefe ? 'flex' : 'none';
       if (!isJefe || !wrap) return;
       var names = { zarate: 'F. Zarate', hernandez: 'M. Hernández', ahumada: 'F. Ahumada', cruz: 'A. Cruz' };
       var keys = ['all'].concat(FIELD_ENGINEERS);
@@ -310,6 +309,13 @@ window.addEventListener("unhandledrejection", function(e) {
       jefeFilter = k;
       _loadAllEngineers();
       _renderJefeUI(); renderDashboard(); renderPanel(); renderCalendar();
+    }
+
+    function setPanelFilter(f, el) {
+      panelStatusFilter = f;
+      document.querySelectorAll('.pf-chip').forEach(function(b) { b.classList.remove('active'); });
+      if (el && el.classList) el.classList.add('active');
+      renderPanel();
     }
 
     function _toast(msg, type = 'ok', ms = 3000) {
@@ -367,7 +373,7 @@ window.addEventListener("unhandledrejection", function(e) {
 
     function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
     function today() { return new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }); }
-    function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+
     function saveAll() {
       if (!currentEngineer) return;
       var storageRef = database.ref('storage');
@@ -772,66 +778,6 @@ window.addEventListener("unhandledrejection", function(e) {
       hmEl.innerHTML = cells;
     }
 
-    /* ── Export Report ── */
-    function exportJefeReport() {
-      var tod = new Date();
-      var savedF = jefeFilter;
-      _loadAllEngineers();
-      var snap = ots.slice();
-      if (savedF !== 'all') ots = snap.filter(function (o) { return (o._owner || FIELD_ENGINEERS[0]) === savedF; });
-      var todD = new Date(tod.getFullYear(), tod.getMonth(), tod.getDate());
-      var ENG_NAMES = { zarate: 'Fernando Zarate', hernandez: 'Misael Hernández', ahumada: 'Fernando Ahumada', cruz: 'Axel Gonzalez' };
-      var tVenc = snap.filter(function (o) { return isOverdue(o); }).length;
-      var tAvg = snap.length ? Math.round(snap.reduce(function (s, o) { return s + otPct(o.id); }, 0) / snap.length) : 0;
-      var lines = [
-        '════════════════════════════════════════════════════',
-        'MCM BUSINESS TECH CO · REPORTE EJECUTIVO JEFE',
-        'Generado: ' + tod.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-        '════════════════════════════════════════════════════',
-        '',
-        'RESUMEN GENERAL',
-        '  Total OTs en el sistema : ' + snap.length,
-        '  OTs vencidas            : ' + tVenc + (tVenc > 0 ? ' ⚠ ATENCIÓN' : ''),
-        '  Avance promedio equipo  : ' + tAvg + '%',
-        '',
-        'POR INGENIERO',
-        '──────────────────────────────────────────────────',
-      ];
-      FIELD_ENGINEERS.forEach(function (k) {
-        var eOTs = snap.filter(function (o) { return o._owner === k; });
-        var venc = eOTs.filter(function (o) { return isOverdue(o); }).length;
-        var comp = eOTs.filter(function (o) { return otPct(o.id) === 100; }).length;
-        var avg = eOTs.length ? Math.round(eOTs.reduce(function (s, o) { return s + otPct(o.id); }, 0) / eOTs.length) : 0;
-        var prox = eOTs.filter(function (o) {
-          if (!o.limite || isOverdue(o) || otPct(o.id) === 100) return false;
-          var r = diffDays(todD, parseDate(o.limite)); return r >= 0 && r <= 7;
-        }).length;
-        lines.push('  ' + ENG_NAMES[k]);
-        lines.push('    OTs: ' + eOTs.length + ' | Vencidas: ' + venc + (venc > 0 ? ' ⚠' : ' ✓') + ' | Entrega 7d: ' + prox + ' | Avance: ' + avg + '%');
-        if (eOTs.length) {
-          eOTs.forEach(function (o) {
-            var mark = isOverdue(o) ? '[VENCIDA] ' : '';
-            lines.push('      ' + mark + o.ot + (o.servicio ? ' [' + o.servicio + ']' : '') + ' — ' + o.cliente);
-          });
-        }
-        lines.push('');
-      });
-      lines.push('════════════════════════════════════════════════════');
-      var text = lines.join('\n');
-      try {
-        navigator.clipboard.writeText(text)
-          .then(function () { _toast('📋 Reporte copiado al portapapeles', 'ok', 3000); })
-          .catch(function () { fallbackCopy(text); });
-      } catch (e) { fallbackCopy(text); }
-      function fallbackCopy(t) {
-        var ta = document.createElement('textarea'); ta.value = t;
-        ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta); ta.select();
-        try { document.execCommand('copy'); _toast('📋 Reporte copiado', 'ok', 2500); }
-        catch (e2) { _toast('No se pudo copiar', 'err', 2500); }
-        document.body.removeChild(ta);
-      }
-    }
 
 
     function renderDashboard() {
@@ -1127,54 +1073,173 @@ window.addEventListener("unhandledrejection", function(e) {
        PANEL
     ═══════════════════════════════ */
     function renderPanel() {
-      const q = (document.getElementById('searchInput').value || '').toLowerCase();
-      const grid = document.getElementById('otGrid');
-      // Ordenar por más reciente primero (createdAt desc, o por id como fallback)
-      const sorted = [...ots].sort((a, b) => {
-        // Intentar ordenar por createdAt si existe como string comparable
-        const aT = a.createdAt || a.id || '', bT = b.createdAt || b.id || '';
+      var q = (document.getElementById('searchInput').value || '').toLowerCase();
+      var grid = document.getElementById('otGrid');
+      var sortEl = document.getElementById('panelSort');
+      var sortMode = sortEl ? sortEl.value : 'reciente';
+      var now = new Date(), tod = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      // Base sort: más reciente primero
+      var sorted = ots.slice().sort(function(a, b) {
+        var aT = a.createdAt || a.id || '', bT = b.createdAt || b.id || '';
         return bT.localeCompare(aT);
       });
-      const list = q ? sorted.filter(o => (o.ot || '').toLowerCase().includes(q) || (o.cliente || '').toLowerCase().includes(q) || (o.idNum || '').toLowerCase().includes(q) || (o.servicio || '').toLowerCase().includes(q) || (o.detonacion || '').includes(q) || (o.limite || '').includes(q)) : sorted;
-      const total = ots.length;
-      const activas = ots.filter(o => !isOTClosed(o) && !isOverdue(o)).length;
-      document.getElementById('psTotal').textContent = total;
-      document.getElementById('psActivas').textContent = activas;
-      document.getElementById('psCompletas').textContent = ots.filter(o => isOTClosed(o)).length;
-      document.getElementById('psVencidas').textContent = ots.filter(o => isOverdue(o)).length;
+      if (sortMode === 'limite') {
+        sorted.sort(function(a, b) {
+          if (a.limite && b.limite) return parseDate(a.limite) - parseDate(b.limite);
+          if (a.limite) return -1; if (b.limite) return 1; return 0;
+        });
+      } else if (sortMode === 'avance_asc') {
+        sorted.sort(function(a, b) { return otPct(a.id) - otPct(b.id); });
+      } else if (sortMode === 'avance_desc') {
+        sorted.sort(function(a, b) { return otPct(b.id) - otPct(a.id); });
+      } else if (sortMode === 'ot') {
+        sorted.sort(function(a, b) { return (a.ot || '').localeCompare(b.ot || ''); });
+      }
 
-      if (!list.length) { grid.innerHTML = `<div class="ot-empty"><div class="icon">📋</div><p>No se encontraron OTs.</p></div>`; return; }
+      // Filtro de búsqueda
+      var list = q ? sorted.filter(function(o) {
+        return (o.ot || '').toLowerCase().includes(q) ||
+          (o.cliente || '').toLowerCase().includes(q) ||
+          (o.idNum || '').toLowerCase().includes(q) ||
+          (o.servicio || '').toLowerCase().includes(q) ||
+          (o.detonacion || '').includes(q) ||
+          (o.limite || '').includes(q);
+      }) : sorted;
 
-      grid.innerHTML = list.map(ot => {
-        const pct = otPct(ot.id), overdue = isOverdue(ot);
-        const topCol = pct === 100 ? '#1a7a45' : overdue ? '#b02020' : '#1256a8';
-        let dlChip = '';
-        if (ot.limite) {
-          const end = parseDate(ot.limite), now = new Date(), tod = new Date(now.getFullYear(), now.getMonth(), now.getDate()), rem = diffDays(tod, end);
-          const closed = isOTClosed(ot);
-          if (closed || pct === 100) dlChip = `<span class="deadline-chip" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)">✓ ${closed ? 'Entregada' : 'Completa'}</span>`;
-          else if (rem < 0) dlChip = `<span class="deadline-chip" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)">🔴 ${Math.abs(rem)}d vencida</span>`;
-          else if (rem <= 3) dlChip = `<span class="deadline-chip" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)">⚠ ${rem}d</span>`;
-          else if (rem <= 7) dlChip = `<span class="deadline-chip" style="background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border)">🟡 ${rem}d</span>`;
-          else dlChip = `<span class="deadline-chip" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)">🟢 ${rem}d</span>`;
+      // Filtro de estado (chips)
+      if (panelStatusFilter === 'proceso') {
+        list = list.filter(function(o) { return !isOTClosed(o) && !isOverdue(o); });
+      } else if (panelStatusFilter === 'vencidas') {
+        list = list.filter(function(o) { return isOverdue(o); });
+      } else if (panelStatusFilter === 'completas') {
+        list = list.filter(function(o) { return isOTClosed(o); });
+      }
+
+      // Stats
+      var total    = ots.length;
+      var activas  = ots.filter(function(o) { return !isOTClosed(o) && !isOverdue(o); }).length;
+      var completas = ots.filter(function(o) { return isOTClosed(o); }).length;
+      var vencidas  = ots.filter(function(o) { return isOverdue(o); }).length;
+      document.getElementById('psTotal').textContent    = total;
+      document.getElementById('psActivas').textContent  = activas;
+      document.getElementById('psCompletas').textContent = completas;
+      document.getElementById('psVencidas').textContent  = vencidas;
+
+      if (!list.length) {
+        var emptyExtra = panelStatusFilter !== 'all'
+          ? '<button class="btn btn-ghost btn-sm" onclick="setPanelFilter(\'all\',document.getElementById(\'pfAll\'))" style="margin-top:12px;">Ver todas</button>'
+          : '';
+        grid.innerHTML = '<div class="ot-empty"><div class="icon">📋</div><p>No se encontraron OTs' + (panelStatusFilter !== 'all' ? ' con este filtro' : '') + '.</p>' + emptyExtra + '</div>';
+        return;
+      }
+
+      var PIPE_STAGES = [
+        { key: 'levantamiento', lbl: 'Lev.' },
+        { key: 'diseno',        lbl: 'Dis.' },
+        { key: 'construccion',  lbl: 'Obra' },
+        { key: 'entregado',     lbl: 'Entrega' },
+        { key: 'liberado',      lbl: 'Lib.' }
+      ];
+
+      grid.innerHTML = list.map(function(ot) {
+        var pct    = otPct(ot.id);
+        var overdue = isOverdue(ot);
+        var closed  = isOTClosed(ot);
+
+        // Stripe lateral de color por estado
+        var stripeCol = closed ? '#1a7a45' : overdue ? '#b02020' : '#1256a8';
+
+        // Badge de estado
+        var statusLabel, statusClass;
+        if (closed) {
+          var isCancelled = ((ot.entregado || '').toLowerCase().includes('cancel') || (ot.liberado || '').toLowerCase().includes('cancel'));
+          statusLabel = isCancelled ? 'Cancelada' : 'Completada';
+          statusClass = 'ot-status-done';
+        } else if (overdue) {
+          statusLabel = '🔴 Vencida';
+          statusClass = 'ot-status-overdue';
+        } else {
+          statusLabel = 'En proceso';
+          statusClass = 'ot-status-active';
         }
-        // Pipeline: solo 5 etapas clave para mayor legibilidad en la tarjeta
-        const KEY_STAGES = [{ key: 'levantamiento', lbl: 'Lev.' }, { key: 'diseno', lbl: 'Dis.' }, { key: 'construccion', lbl: 'Obra' }, { key: 'entregado', lbl: 'Entrega' }, { key: 'liberado', lbl: 'Lib.' }];
-        const dots = KEY_STAGES.map(f => { const val = ot[f.key] || ''; const col = wfColor(val); const isDone = val && DONE_VALS.includes(val.toLowerCase()); return `<div class="p-dot" title="${f.lbl}: ${val || 'Sin asignar'}"><div class="p-dot-circle" style="width:13px;height:13px;background:${isDone ? col.color : 'rgba(0,0,0,0)'};border-color:${col.border};border-width:2px;${!val ? 'opacity:0.22' : ''}"></div><div class="p-dot-label" style="font-size:0.58rem;">${f.lbl}</div></div>`; }).join('');
-        return `<div class="ot-card" onclick="openDetail('${ot.id}')">
-      <div class="ot-card-top" style="background:${topCol}"></div>
-      <div class="ot-card-body">
-        <div style="margin-bottom:8px;"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;"><div style="min-width:0;"><div class="ot-num">${escHtml(ot.ot || '—')}</div><div class="ot-client" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">${escHtml(ot.cliente || '—')}</div>${ot.servicio ? `<div style="font-size:0.69rem;color:var(--mcm-orange);margin-top:3px;font-weight:600;display:flex;align-items:center;gap:4px;"><span style="opacity:0.75;">⚙</span>${escHtml(ot.servicio)}</div>` : ''}</div>${(ot._owner && currentEngineer && currentEngineer.isJefe) ? `<div style="flex-shrink:0;background:rgba(26,111,212,0.12);border:1px solid rgba(26,111,212,0.3);border-radius:6px;padding:3px 8px;font-family:'Bebas Neue',sans-serif;font-size:0.72rem;letter-spacing:1px;color:#6db3ff;" title="${engShortName(ot._owner)}">${engInitials(ot._owner)}</div>` : ''}</div></div>
-        <div class="ot-deadline-row"><span style="font-size:0.7rem;color:var(--muted);">🏁 ${ot.limite ? fmtDate(parseDate(ot.limite)) : 'Sin fecha'}</span>${dlChip}</div>
-        <div class="pipeline-wrap"><div class="pipeline-label">Flujo de trabajo</div><div class="pipeline-dots">${dots}</div></div>
-        <div style="margin-top:10px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:0.7rem;color:var(--muted);">Checklist</span><span style="font-size:0.73rem;font-weight:600;color:var(--mcm-blue);">${pct}%</span></div><div style="height:5px;background:#e8eef8;border-radius:20px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--mcm-blue),var(--mcm-blue-light));border-radius:20px;transition:width 0.5s;"></div></div></div>
-      </div>
-      <div class="ot-card-footer" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" onclick="duplicateOT('${ot.id}')">Duplicar</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteOT('${ot.id}')">Eliminar</button>
-        <button class="btn btn-blue btn-sm" onclick="openDetail('${ot.id}')">Ver →</button>
-      </div>
-    </div>`;
+
+        // Chip de fecha límite
+        var dlChip = '';
+        if (ot.limite && !closed) {
+          var end = parseDate(ot.limite);
+          var rem = diffDays(tod, end);
+          if (rem < 0)       dlChip = '<span class="dl-chip dl-overdue">' + Math.abs(rem) + 'd vencida</span>';
+          else if (rem === 0) dlChip = '<span class="dl-chip dl-urgent">🚨 Hoy</span>';
+          else if (rem <= 3)  dlChip = '<span class="dl-chip dl-urgent">⚠ ' + rem + 'd</span>';
+          else if (rem <= 7)  dlChip = '<span class="dl-chip dl-warn">🟡 ' + rem + 'd</span>';
+          else                dlChip = '<span class="dl-chip dl-ok">🟢 ' + rem + 'd</span>';
+        }
+
+        // Badge de propietario (solo Jefe)
+        var ownerBadge = (ot._owner && currentEngineer && currentEngineer.isJefe)
+          ? '<span class="ot2-owner-badge" title="' + engShortName(ot._owner) + '">' + engInitials(ot._owner) + '</span>'
+          : '';
+
+        // Pipeline visual con líneas conectoras
+        var pipeHtml = PIPE_STAGES.map(function(f, i) {
+          var val    = ot[f.key] || '';
+          var isDone = val && DONE_VALS.includes(val.toLowerCase());
+          var col    = wfColor(val);
+          var dotStyle = isDone
+            ? 'background:' + col.color + ';border-color:' + col.color
+            : val ? 'border-color:' + col.border : 'border-color:#d0d8ea;opacity:0.38';
+          var conn = i < PIPE_STAGES.length - 1
+            ? '<div class="p2-conn' + (isDone ? ' done' : '') + '"></div>'
+            : '';
+          return '<div class="p2-stg" title="' + f.lbl + ': ' + (val || 'Sin asignar') + '">'
+            + '<div class="p2-dot" style="' + dotStyle + '"></div>'
+            + '<span>' + f.lbl + '</span>'
+            + '</div>' + conn;
+        }).join('');
+
+        // Color del progreso
+        var progColor = pct >= 80 ? '#1a7a45' : pct >= 50 ? '#f5a623' : '#1256a8';
+
+        // Fechas formateadas
+        var detFmt = ot.detonacion ? fmtDate(parseDate(ot.detonacion)) : '—';
+        var limFmt = ot.limite ? fmtDate(parseDate(ot.limite)) : 'Sin fecha';
+        var limClass = (overdue && !closed) ? ' otkv2-date-red' : '';
+
+        return '<div class="ot-card" onclick="openDetail(\''+ot.id+'\')" title="'+escHtml(ot.cliente || '')+'">'
+          + '<div class="ot-card-lstripe" style="background:'+stripeCol+'"></div>'
+          + '<div class="ot-card-right">'
+            + '<div class="ot-card-main">'
+              + '<div class="otkv2-head">'
+                + '<div class="otkv2-identity">'
+                  + '<div class="ot-num">'+escHtml(ot.ot || '—')+'</div>'
+                  + '<div class="ot-client">'+escHtml(ot.cliente || '—')+'</div>'
+                  + (ot.servicio ? '<div class="otkv2-srv">⚙ '+escHtml(ot.servicio)+'</div>' : '')
+                + '</div>'
+                + '<div class="otkv2-badges">'
+                  + '<span class="otkv2-sbadge '+statusClass+'">' + statusLabel + '</span>'
+                  + ownerBadge
+                + '</div>'
+              + '</div>'
+              + '<div class="otkv2-dates">'
+                + '<span>📅 '+detFmt+'</span>'
+                + '<span class="otkv2-date-arrow">›</span>'
+                + '<span class="'+limClass+'">🏁 '+limFmt+'</span>'
+                + dlChip
+              + '</div>'
+              + '<div class="otkv2-pipe">'+pipeHtml+'</div>'
+              + '<div class="otkv2-prog">'
+                + '<div class="otkv2-prog-hdr"><span>Checklist</span><strong style="color:'+progColor+'">'+pct+'%</strong></div>'
+                + '<div class="otkv2-prog-track"><div class="otkv2-prog-fill" style="width:'+pct+'%;background:'+progColor+'"></div></div>'
+              + '</div>'
+            + '</div>'
+            + '<div class="ot-card-footer" onclick="event.stopPropagation()">'
+              + '<button class="btn btn-ghost btn-sm" onclick="duplicateOT(\''+ot.id+'\')" title="Duplicar OT">Duplicar</button>'
+              + '<button class="btn btn-danger btn-sm" onclick="deleteOT(\''+ot.id+'\')" title="Eliminar OT">Eliminar</button>'
+              + '<button class="btn btn-blue btn-sm" onclick="openDetail(\''+ot.id+'\')" title="Ver detalle">Ver →</button>'
+            + '</div>'
+          + '</div>'
+        + '</div>';
       }).join('');
     }
 
