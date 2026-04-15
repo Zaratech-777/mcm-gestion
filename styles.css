@@ -3388,3 +3388,507 @@
       transform: scale(0.96) !important;
     }
 
+    /* ══════════════════════════════════════
+   EXPORT EXCEL BUTTON
+══════════════════════════════════════ */
+
+    .btn-export {
+      background: linear-gradient(135deg, #1a7a45, #22915a) !important;
+      border: 1px solid rgba(34, 145, 90, 0.5) !important;
+      color: #fff !important;
+      font-weight: 600;
+      gap: 4px;
+      transition: all 0.25s cubic-bezier(.4, 0, .2, 1);
+      box-shadow: 0 2px 8px rgba(26, 122, 69, 0.2);
+    }
+
+    .btn-export:hover {
+      background: linear-gradient(135deg, #22915a, #2aad6c) !important;
+      box-shadow: 0 4px 16px rgba(26, 122, 69, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .btn-export:active {
+      transform: scale(0.96);
+    }
+
+    .btn-export.exporting {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    /* ══════════════════════════════════════
+   RESPONSIVE — MOBILE BREAKPOINTS
+══════════════════════════════════════ */
+
+    @media (max-width: 768px) {
+      .nav {
+        padding: 0 12px;
+        gap: 6px;
+      }
+
+      .nav-brand {
+        padding: 10px 0;
+      }
+
+      .logo-subtitle {
+        display: none;
+      }
+
+      .nav-links {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+        padding-bottom: 6px;
+        gap: 2px;
+      }
+
+      .nav-link {
+        font-size: 0.72rem;
+        padding: 6px 10px;
+      }
+
+      .nav-right {
+        gap: 8px;
+      }
+
+      .hacker-status {
+        display: none;
+      }
+
+      .clock {
+        font-size: 0.68rem;
+      }
+
+      .ticker-bar {
+        font-size: 0.6rem;
+      }
+
+      .dash {
+        padding: 16px 12px 40px;
+      }
+
+      .dash-welcome-left h2 {
+        font-size: 1.4rem;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .kpi-card {
+        padding: 14px;
+      }
+
+      .kpi-num {
+        font-size: 2.2rem;
+      }
+
+      .panel-main,
+      .detail-main {
+        padding: 16px 12px 40px;
+      }
+
+      .ot-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-stats {
+        gap: 6px;
+      }
+
+      .pstat {
+        padding: 10px 12px;
+        min-width: 70px;
+      }
+
+      .pstat-num {
+        font-size: 1.5rem;
+      }
+
+      .ot-info-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .workflow-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .tl-days-row {
+        flex-direction: column;
+      }
+
+      .cal-wrap {
+        padding: 16px 12px;
+      }
+
+      .cal-header {
+        flex-direction: column;
+        gap: 12px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .nav-link {
+        font-size: 0.65rem;
+        padding: 5px 8px;
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+
+      .kpi-num {
+        font-size: 1.8rem;
+      }
+
+      .kpi-label {
+        font-size: 0.62rem;
+      }
+
+      .fb-status {
+        display: none;
+      }
+
+      .eng-badge {
+        gap: 4px;
+      }
+
+      .eng-badge-name {
+        font-size: 0.7rem;
+      }
+
+      .dash-welcome {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    /* ══════════════════════════════════════
+   JEFE EXECUTIVE DASHBOARD — CSS CLASSES
+══════════════════════════════════════ */
+
+    .jefe-section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 3px;
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      margin: 22px 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .jefe-section-line {
+      flex: 1;
+      height: 1px;
+      background: var(--dark-border);
+      display: block;
+    }
+
+    .jefe-team-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .jefe-team-kpi {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .jefe-team-kpi-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.9rem;
+      line-height: 1;
+    }
+
+    .jefe-team-kpi-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    .jefe-team-kpi-sub {
+      font-size: 0.67rem;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    .jefe-two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .jefe-two-col {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .jefe-card-panel {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .jefe-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .jefe-card-title {
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 2px;
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+
+    .jefe-card-count {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--text-dim);
+    }
+
+    .jefe-card-scroll {
+      overflow-x: auto;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .jefe-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .jefe-table thead tr {
+      border-bottom: 1px solid var(--dark-border);
+    }
+
+    .jefe-table th {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      padding: 5px 8px;
+      text-align: left;
+      letter-spacing: 1px;
+    }
+
+    .jefe-table th:last-child {
+      text-align: right;
+    }
+
+    .jefe-table tbody tr {
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .jefe-table tbody tr:hover {
+      background: rgba(244, 121, 32, 0.06);
+    }
+
+    .jefe-empty-msg {
+      display: none;
+      text-align: center;
+      padding: 24px;
+      color: var(--hacker);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+    }
+
+    .jefe-heatmap-wrap {
+      background: var(--dark-card);
+      border: 1px solid var(--dark-border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 8px;
+    }
+
+    .jefe-heatmap-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .jefe-heatmap-title {
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 2px;
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+
+    .jefe-heatmap-range {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.63rem;
+      color: var(--text-dim);
+    }
+
+    .jefe-heatmap-grid {
+      display: grid;
+      grid-template-columns: 76px repeat(5, 1fr);
+      gap: 5px;
+      align-items: center;
+    }
+
+    .jefe-heatmap-legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 12px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .jefe-heatmap-legend-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--text-dim);
+    }
+
+    .jefe-heatmap-legend-dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .jefe-heatmap-legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    .jefe-heatmap-empty {
+      display: none;
+      text-align: center;
+      padding: 16px;
+      color: var(--text-dim);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+    }
+
+    /* Weekly heatmap cells */
+    .whm-day-hdr {
+      text-align: center;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
+
+    .whm-eng-lbl {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      text-align: right;
+      padding-right: 6px;
+    }
+
+    .whm-cell {
+      text-align: center;
+      border-radius: 4px;
+      padding: 6px 0;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.62rem;
+      font-weight: 600;
+      transition: transform 0.12s;
+    }
+
+    .whm-cell:hover {
+      transform: scale(1.08);
+    }
+
+    /* ══════════════════════════════════════
+   CONFIRM MODAL — CSS CLASSES
+══════════════════════════════════════ */
+
+    .confirm-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .confirm-box {
+      background: #0f1e35;
+      border: 1px solid #1a3050;
+      border-radius: 16px;
+      padding: 28px 28px 22px;
+      max-width: 380px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .confirm-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: 2px;
+      color: #e2eaff;
+      margin-bottom: 10px;
+    }
+
+    .confirm-msg {
+      font-size: 0.88rem;
+      color: #7a99cc;
+      margin-bottom: 22px;
+      line-height: 1.5;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .confirm-btn-cancel {
+      background: transparent;
+      border: 1px solid #1a3050;
+      color: #7a99cc;
+      padding: 9px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.84rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .confirm-btn-cancel:hover {
+      border-color: #243d60;
+      color: #a0b8e0;
+    }
+
+    .confirm-btn-delete {
+      background: #b02020;
+      border: 1px solid #e05c3a;
+      color: #fff;
+      padding: 9px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.84rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .confirm-btn-delete:hover {
+      background: #c02828;
+      box-shadow: 0 0 16px rgba(176, 32, 32, 0.4);
+    }

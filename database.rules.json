@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "storage": {
+      ".read": true,
+      "mcm_ots_v3_zarate":       { ".write": true },
+      "mcm_otdata_v3_zarate":    { ".write": true },
+      "mcm_ots_v3_hernandez":    { ".write": true },
+      "mcm_otdata_v3_hernandez": { ".write": true },
+      "mcm_ots_v3_ahumada":      { ".write": true },
+      "mcm_otdata_v3_ahumada":   { ".write": true },
+      "mcm_ots_v3_cruz":         { ".write": true },
+      "mcm_otdata_v3_cruz":      { ".write": true },
+      "$other":                  { ".write": false }
+    },
+    ".read": false,
+    ".write": false
+  }
+}

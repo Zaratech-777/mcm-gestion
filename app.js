@@ -254,9 +254,7 @@ window.addEventListener("unhandledrejection", function(e) {
     var jefeFilter = 'all';
     var panelStatusFilter = 'all'; // 'all' | 'proceso' | 'vencidas' | 'completas'
 
-    function _loadAllEngineers() {
-      _loadAllEngineersFromObj(fbStorageCache);
-    }
+
 
     function _loadAllEngineersFromObj(allData) {
       var allOts = []; otData = {};
@@ -307,7 +305,7 @@ window.addEventListener("unhandledrejection", function(e) {
 
     function setJefeFilter(k) {
       jefeFilter = k;
-      _loadAllEngineers();
+      _loadAllEngineersFromObj(fbStorageCache);
       _renderJefeUI(); renderDashboard(); renderPanel(); renderCalendar();
     }
 
@@ -316,6 +314,13 @@ window.addEventListener("unhandledrejection", function(e) {
       document.querySelectorAll('.pf-chip').forEach(function(b) { b.classList.remove('active'); });
       if (el && el.classList) el.classList.add('active');
       renderPanel();
+    }
+
+    /* ── Panel search debounce ── */
+    var _searchTimer = null;
+    function debouncedSearch() {
+      if (_searchTimer) clearTimeout(_searchTimer);
+      _searchTimer = setTimeout(renderPanel, 250);
     }
 
     function _toast(msg, type = 'ok', ms = 3000) {
@@ -571,7 +576,7 @@ window.addEventListener("unhandledrejection", function(e) {
 
       // Load ALL engineers fresh
       var savedFilter = jefeFilter;
-      _loadAllEngineers();
+      _loadAllEngineersFromObj(fbStorageCache);
       var allOTs = ots.slice();
       // Restore filter
       if (savedFilter !== 'all') ots = allOTs.filter(function (o) { return (o._owner || FIELD_ENGINEERS[0]) === savedFilter; });
@@ -620,10 +625,10 @@ window.addEventListener("unhandledrejection", function(e) {
         { n: tEntregadas, lbl: 'ENTREGADAS', sub: 'al cliente', col: 'var(--mcm-orange-lt)' },
         { n: tCompletas, lbl: 'COMPLETAS', sub: '100% del flujo', col: '#4caf8a' },
       ].map(function (k) {
-        return '<div style="background:var(--dark-card);border:1px solid var(--dark-border);border-radius:12px;padding:14px 16px;">'
-          + '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.9rem;line-height:1;color:' + k.col + '">' + k.n + '</div>'
-          + '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.6rem;color:var(--text-dim);letter-spacing:1px;margin-top:2px;">' + k.lbl + '</div>'
-          + '<div style="font-size:0.67rem;color:var(--text-dim);margin-top:3px;">' + k.sub + '</div>'
+        return '<div class="jefe-team-kpi">'
+          + '<div class="jefe-team-kpi-num" style="color:' + k.col + '">' + k.n + '</div>'
+          + '<div class="jefe-team-kpi-label">' + k.lbl + '</div>'
+          + '<div class="jefe-team-kpi-sub">' + k.sub + '</div>'
           + '</div>';
       }).join('');
 
@@ -1248,176 +1253,7 @@ window.addEventListener("unhandledrejection", function(e) {
       }).join('');
     }
 
-    function OLD_renderPanel_DUPLICATE_REMOVED() { return;
-      var q = (document.getElementById('searchInput').value || '').toLowerCase();
-      var grid = document.getElementById('otGrid');
-      var sortEl = document.getElementById('panelSort');
-      var sortMode = sortEl ? sortEl.value : 'reciente';
-      var now = new Date(), tod = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      // Base sort: más reciente primero
-      var sorted = ots.slice().sort(function(a, b) {
-        var aT = a.createdAt || a.id || '', bT = b.createdAt || b.id || '';
-        return bT.localeCompare(aT);
-      });
-      if (sortMode === 'limite') {
-        sorted.sort(function(a, b) {
-          if (a.limite && b.limite) return parseDate(a.limite) - parseDate(b.limite);
-          if (a.limite) return -1; if (b.limite) return 1; return 0;
-        });
-      } else if (sortMode === 'avance_asc') {
-        sorted.sort(function(a, b) { return otPct(a.id) - otPct(b.id); });
-      } else if (sortMode === 'avance_desc') {
-        sorted.sort(function(a, b) { return otPct(b.id) - otPct(a.id); });
-      } else if (sortMode === 'ot') {
-        sorted.sort(function(a, b) { return (a.ot || '').localeCompare(b.ot || ''); });
-      }
-
-      // Filtro de búsqueda
-      var list = q ? sorted.filter(function(o) {
-        return (o.ot || '').toLowerCase().includes(q) ||
-          (o.cliente || '').toLowerCase().includes(q) ||
-          (o.idNum || '').toLowerCase().includes(q) ||
-          (o.servicio || '').toLowerCase().includes(q) ||
-          (o.detonacion || '').includes(q) ||
-          (o.limite || '').includes(q);
-      }) : sorted;
-
-      // Filtro de estado (chips)
-      if (panelStatusFilter === 'proceso') {
-        list = list.filter(function(o) { return !isOTClosed(o) && !isOverdue(o); });
-      } else if (panelStatusFilter === 'vencidas') {
-        list = list.filter(function(o) { return isOverdue(o); });
-      } else if (panelStatusFilter === 'completas') {
-        list = list.filter(function(o) { return isOTClosed(o); });
-      }
-
-      // Stats
-      var total    = ots.length;
-      var activas  = ots.filter(function(o) { return !isOTClosed(o) && !isOverdue(o); }).length;
-      var completas = ots.filter(function(o) { return isOTClosed(o); }).length;
-      var vencidas  = ots.filter(function(o) { return isOverdue(o); }).length;
-      document.getElementById('psTotal').textContent    = total;
-      document.getElementById('psActivas').textContent  = activas;
-      document.getElementById('psCompletas').textContent = completas;
-      document.getElementById('psVencidas').textContent  = vencidas;
-
-      if (!list.length) {
-        var emptyExtra = panelStatusFilter !== 'all'
-          ? '<button class="btn btn-ghost btn-sm" onclick="setPanelFilter(\'all\',document.getElementById(\'pfAll\'))" style="margin-top:12px;">Ver todas</button>'
-          : '';
-        grid.innerHTML = '<div class="ot-empty"><div class="icon">📋</div><p>No se encontraron OTs' + (panelStatusFilter !== 'all' ? ' con este filtro' : '') + '.</p>' + emptyExtra + '</div>';
-        return;
-      }
-
-      var PIPE_STAGES = [
-        { key: 'levantamiento', lbl: 'Lev.' },
-        { key: 'diseno',        lbl: 'Dis.' },
-        { key: 'construccion',  lbl: 'Obra' },
-        { key: 'entregado',     lbl: 'Entrega' },
-        { key: 'liberado',      lbl: 'Lib.' }
-      ];
-
-      grid.innerHTML = list.map(function(ot) {
-        var pct    = otPct(ot.id);
-        var overdue = isOverdue(ot);
-        var closed  = isOTClosed(ot);
-
-        // Stripe lateral de color por estado
-        var stripeCol = closed ? '#1a7a45' : overdue ? '#b02020' : '#1256a8';
-
-        // Badge de estado
-        var statusLabel, statusClass;
-        if (closed) {
-          var isCancelled = ((ot.entregado || '').toLowerCase().includes('cancel') || (ot.liberado || '').toLowerCase().includes('cancel'));
-          statusLabel = isCancelled ? 'Cancelada' : 'Completada';
-          statusClass = 'ot-status-done';
-        } else if (overdue) {
-          statusLabel = '🔴 Vencida';
-          statusClass = 'ot-status-overdue';
-        } else {
-          statusLabel = 'En proceso';
-          statusClass = 'ot-status-active';
-        }
-
-        // Chip de fecha límite
-        var dlChip = '';
-        if (ot.limite && !closed) {
-          var end = parseDate(ot.limite);
-          var rem = diffDays(tod, end);
-          if (rem < 0)       dlChip = '<span class="dl-chip dl-overdue">' + Math.abs(rem) + 'd vencida</span>';
-          else if (rem === 0) dlChip = '<span class="dl-chip dl-urgent">🚨 Hoy</span>';
-          else if (rem <= 3)  dlChip = '<span class="dl-chip dl-urgent">⚠ ' + rem + 'd</span>';
-          else if (rem <= 7)  dlChip = '<span class="dl-chip dl-warn">🟡 ' + rem + 'd</span>';
-          else                dlChip = '<span class="dl-chip dl-ok">🟢 ' + rem + 'd</span>';
-        }
-
-        // Badge de propietario (solo Jefe)
-        var ownerBadge = (ot._owner && currentEngineer && currentEngineer.isJefe)
-          ? '<span class="ot2-owner-badge" title="' + engShortName(ot._owner) + '">' + engInitials(ot._owner) + '</span>'
-          : '';
-
-        // Pipeline visual con líneas conectoras
-        var pipeHtml = PIPE_STAGES.map(function(f, i) {
-          var val    = ot[f.key] || '';
-          var isDone = val && DONE_VALS.includes(val.toLowerCase());
-          var col    = wfColor(val);
-          var dotStyle = isDone
-            ? 'background:' + col.color + ';border-color:' + col.color
-            : val ? 'border-color:' + col.border : 'border-color:#d0d8ea;opacity:0.38';
-          var conn = i < PIPE_STAGES.length - 1
-            ? '<div class="p2-conn' + (isDone ? ' done' : '') + '"></div>'
-            : '';
-          return '<div class="p2-stg" title="' + f.lbl + ': ' + (val || 'Sin asignar') + '">'
-            + '<div class="p2-dot" style="' + dotStyle + '"></div>'
-            + '<span>' + f.lbl + '</span>'
-            + '</div>' + conn;
-        }).join('');
-
-        // Color del progreso
-        var progColor = pct >= 80 ? '#1a7a45' : pct >= 50 ? '#f5a623' : '#1256a8';
-
-        // Fechas formateadas
-        var detFmt = ot.detonacion ? fmtDate(parseDate(ot.detonacion)) : '—';
-        var limFmt = ot.limite ? fmtDate(parseDate(ot.limite)) : 'Sin fecha';
-        var limClass = (overdue && !closed) ? ' otkv2-date-red' : '';
-
-        return '<div class="ot-card" onclick="openDetail(\''+ot.id+'\')" title="'+escHtml(ot.cliente || '')+'">'
-          + '<div class="ot-card-lstripe" style="background:'+stripeCol+'"></div>'
-          + '<div class="ot-card-right">'
-            + '<div class="ot-card-main">'
-              + '<div class="otkv2-head">'
-                + '<div class="otkv2-identity">'
-                  + '<div class="ot-num">'+escHtml(ot.ot || '—')+'</div>'
-                  + '<div class="ot-client">'+escHtml(ot.cliente || '—')+'</div>'
-                  + (ot.servicio ? '<div class="otkv2-srv">⚙ '+escHtml(ot.servicio)+'</div>' : '')
-                + '</div>'
-                + '<div class="otkv2-badges">'
-                  + '<span class="otkv2-sbadge '+statusClass+'">' + statusLabel + '</span>'
-                  + ownerBadge
-                + '</div>'
-              + '</div>'
-              + '<div class="otkv2-dates">'
-                + '<span>📅 '+detFmt+'</span>'
-                + '<span class="otkv2-date-arrow">›</span>'
-                + '<span class="'+limClass+'">🏁 '+limFmt+'</span>'
-                + dlChip
-              + '</div>'
-              + '<div class="otkv2-pipe">'+pipeHtml+'</div>'
-              + '<div class="otkv2-prog">'
-                + '<div class="otkv2-prog-hdr"><span>Checklist</span><strong style="color:'+progColor+'">'+pct+'%</strong></div>'
-                + '<div class="otkv2-prog-track"><div class="otkv2-prog-fill" style="width:'+pct+'%;background:'+progColor+'"></div></div>'
-              + '</div>'
-            + '</div>'
-            + '<div class="ot-card-footer" onclick="event.stopPropagation()">'
-              + '<button class="btn btn-ghost btn-sm" onclick="duplicateOT(\''+ot.id+'\')" title="Duplicar OT">Duplicar</button>'
-              + '<button class="btn btn-danger btn-sm" onclick="deleteOT(\''+ot.id+'\')" title="Eliminar OT">Eliminar</button>'
-              + '<button class="btn btn-blue btn-sm" onclick="openDetail(\''+ot.id+'\')" title="Ver detalle">Ver →</button>'
-            + '</div>'
-          + '</div>'
-        + '</div>';
-      }).join('');
-    }
 
     /* ═══════════════════════════════
        DETAIL INFO
@@ -2241,6 +2077,258 @@ window.addEventListener("unhandledrejection", function(e) {
         }
       }, 6000);
     })();
+
+    /* ═══════════════════════════════════════════════════════
+       EXPORT TO EXCEL — Professional Formatted XLSX
+    ═══════════════════════════════════════════════════════ */
+    function exportToExcel() {
+      if (!ots.length) { _toast('⚠ No hay OTs para exportar', 'error', 3000); return; }
+
+      var btn = document.getElementById('btnExportXls');
+      if (btn) { btn.classList.add('exporting'); btn.textContent = '⏳ Generando...'; }
+
+      setTimeout(function() {
+        try {
+          _generateExcel();
+        } catch (e) {
+          console.error('[MCM EXCEL ERROR]', e);
+          _toast('❌ Error al generar Excel: ' + e.message, 'error', 4000);
+        } finally {
+          if (btn) { btn.classList.remove('exporting'); btn.textContent = '📊 Exportar Excel'; }
+        }
+      }, 100);
+    }
+
+    function _generateExcel() {
+      var wb = new ExcelJS.Workbook();
+      wb.creator = 'MCM Business Tech Co';
+      wb.created = new Date();
+
+      /* ── Colors ── */
+      var MCM_BLUE = '0A3D7C';
+      var MCM_BLUE_LT = '1256A8';
+      var MCM_ORANGE = 'F47920';
+      var MCM_GREEN = '1A7A45';
+      var MCM_RED = 'B02020';
+      var MCM_YELLOW = 'F5A623';
+      var HDR_BG = '060D1A';
+      var ROW_ALT = 'F0F4FA';
+      var ROW_WHITE = 'FFFFFF';
+      var BORDER_CLR = 'D0D8E8';
+
+      /* ── Sheet Setup ── */
+      var isJefe = !!(currentEngineer && currentEngineer.isJefe);
+      var sheetName = isJefe ? 'Reporte Global' : 'Mis OTs';
+      var ws = wb.addWorksheet(sheetName, {
+        properties: { defaultRowHeight: 18 },
+        pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 } }
+      });
+
+      /* ── Column widths ── */
+      var cols = [
+        { header: '#',              key: 'num',         width: 5 },
+        { header: 'OT',            key: 'ot',          width: 16 },
+        { header: 'CLIENTE',       key: 'cliente',     width: 26 },
+        { header: 'ID',            key: 'idNum',       width: 12 },
+        { header: 'SERVICIO',      key: 'servicio',    width: 20 },
+        { header: 'F.DETONACIÓN',  key: 'detonacion',  width: 14 },
+        { header: 'F.LÍMITE',      key: 'limite',      width: 14 },
+        { header: 'LEVANTAMIENTO', key: 'levantamiento', width: 16 },
+        { header: 'DISEÑO',       key: 'diseno',      width: 12 },
+        { header: 'DIR.',          key: 'direccionamiento', width: 14 },
+        { header: 'PYOT',          key: 'pyot',        width: 12 },
+        { header: 'EQUIP.',        key: 'equipamiento', width: 12 },
+        { header: 'CPE',           key: 'cpe',         width: 12 },
+        { header: 'CONSTR.',       key: 'construccion', width: 12 },
+        { header: 'IMPL.',         key: 'implementacion', width: 12 },
+        { header: 'ENTREGADO',     key: 'entregado',   width: 13 },
+        { header: 'LIBERADO',      key: 'liberado',    width: 13 },
+        { header: 'AVANCE',        key: 'avance',      width: 10 },
+        { header: 'ESTADO',        key: 'estado',      width: 14 }
+      ];
+      if (isJefe) cols.splice(2, 0, { header: 'INGENIERO', key: 'ingeniero', width: 18 });
+      ws.columns = cols;
+
+      /* ── TITLE ROW (Row 1) ── */
+      ws.mergeCells(1, 1, 1, cols.length);
+      var titleCell = ws.getCell('A1');
+      titleCell.value = 'MCM BUSINESS TECH CO — REPORTE DE ÓRDENES DE TRABAJO';
+      titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MCM_BLUE } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getRow(1).height = 36;
+
+      /* ── SUBTITLE ROW (Row 2) ── */
+      ws.mergeCells(2, 1, 2, cols.length);
+      var subCell = ws.getCell('A2');
+      var engLabel = isJefe ? 'Vista Global — Jefe: Alfredo' : 'Ingeniero: ' + currentEngineer.name;
+      var filterLabel = isJefe && jefeFilter !== 'all' ? ' | Filtro: ' + engShortName(jefeFilter) : '';
+      var dateStr = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+      subCell.value = engLabel + filterLabel + '   |   Fecha: ' + dateStr + '   |   Total OTs: ' + ots.length;
+      subCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FFFFFFFF' } };
+      subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MCM_BLUE_LT } };
+      subCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getRow(2).height = 24;
+
+      /* ── EMPTY ROW (Row 3) ── */
+      ws.getRow(3).height = 6;
+
+      /* ── HEADER ROW (Row 4) ── */
+      var hdrRow = ws.getRow(4);
+      hdrRow.height = 26;
+      var thinBorder = { style: 'thin', color: { argb: 'FF' + BORDER_CLR } };
+      cols.forEach(function(c, i) {
+        var cell = hdrRow.getCell(i + 1);
+        cell.value = c.header;
+        cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + HDR_BG } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = { bottom: { style: 'medium', color: { argb: 'FF' + MCM_ORANGE } } };
+      });
+
+      /* ── Freeze panes ── */
+      ws.views = [{ state: 'frozen', ySplit: 4, activeCell: 'A5' }];
+
+      /* ── DATA ROWS ── */
+      var tod = new Date(); tod = new Date(tod.getFullYear(), tod.getMonth(), tod.getDate());
+      var sorted = ots.slice().sort(function(a, b) {
+        var at = a.createdAt || a.id || '', bt = b.createdAt || b.id || '';
+        return bt.localeCompare(at);
+      });
+
+      sorted.forEach(function(o, idx) {
+        var pct = otPct(o.id);
+        var closed = isOTClosed(o);
+        var overdue = isOverdue(o);
+        var estado = closed ? 'COMPLETADA' : overdue ? 'VENCIDA' : 'EN PROCESO';
+        var rowData = {
+          num: idx + 1, ot: o.ot || '', cliente: o.cliente || '', idNum: o.idNum || '',
+          servicio: o.servicio || '', detonacion: o.detonacion || '', limite: o.limite || '',
+          levantamiento: o.levantamiento || '', diseno: o.diseno || '',
+          direccionamiento: o.direccionamiento || '', pyot: o.pyot || '',
+          equipamiento: o.equipamiento || '', cpe: o.cpe || '',
+          construccion: o.construccion || '', implementacion: o.implementacion || '',
+          entregado: o.entregado || '', liberado: o.liberado || '',
+          avance: pct + '%', estado: estado
+        };
+        if (isJefe) rowData.ingeniero = engShortName(o._owner);
+
+        var row = ws.addRow(rowData);
+        var rowNum = row.number;
+        var isAlt = idx % 2 === 1;
+        var bgColor = isAlt ? ROW_ALT : ROW_WHITE;
+
+        row.height = 20;
+        row.eachCell({ includeEmpty: true }, function(cell, colNumber) {
+          cell.font = { name: 'Calibri', size: 9, color: { argb: 'FF333333' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + bgColor } };
+          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+          cell.border = {
+            top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder
+          };
+        });
+
+        /* Style specific columns */
+        // # column — bold
+        row.getCell(1).font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF' + MCM_BLUE } };
+
+        // OT column — bold mono
+        row.getCell(2).font = { name: 'Consolas', size: 9, bold: true, color: { argb: 'FF' + MCM_BLUE } };
+
+        // Cliente — left aligned, bold
+        var clienteCol = isJefe ? 4 : 3;
+        row.getCell(clienteCol).alignment = { vertical: 'middle', horizontal: 'left' };
+        row.getCell(clienteCol).font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF1A1A1A' } };
+
+        // Servicio — left aligned, orange
+        var servicioCol = isJefe ? 6 : 5;
+        row.getCell(servicioCol).alignment = { vertical: 'middle', horizontal: 'left' };
+        row.getCell(servicioCol).font = { name: 'Calibri', size: 9, color: { argb: 'FF' + MCM_ORANGE } };
+
+        // Avance column — color coded
+        var avanceCol = cols.length - 1;
+        var avanceClr = pct >= 80 ? MCM_GREEN : pct >= 50 ? MCM_YELLOW : pct >= 25 ? MCM_ORANGE : MCM_RED;
+        row.getCell(avanceCol).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF' + avanceClr } };
+
+        // Estado column — styled badge
+        var estadoCol = cols.length;
+        var estadoCell = row.getCell(estadoCol);
+        if (estado === 'VENCIDA') {
+          estadoCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+          estadoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MCM_RED } };
+        } else if (estado === 'COMPLETADA') {
+          estadoCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+          estadoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MCM_GREEN } };
+        } else {
+          estadoCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF' + MCM_BLUE } };
+          estadoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F0FC' } };
+        }
+
+        // Fecha límite — red if overdue
+        var limiteCol = isJefe ? 8 : 7;
+        if (overdue) {
+          row.getCell(limiteCol).font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF' + MCM_RED } };
+          row.getCell(limiteCol).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE4E4' } };
+        }
+
+        // Workflow fields — green if done, yellow if in progress
+        var wfStartCol = isJefe ? 9 : 8;
+        WF_FIELDS.forEach(function(wf, wi) {
+          var cell = row.getCell(wfStartCol + wi);
+          var val = (o[wf.key] || '').toLowerCase();
+          if (!val) {
+            cell.font = { name: 'Calibri', size: 8, color: { argb: 'FFBBBBBB' } };
+            cell.value = '—';
+          } else if (DONE_VALS.includes(val)) {
+            cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF' + MCM_GREEN } };
+          } else if (['cancelado', 'cancelación'].includes(val)) {
+            cell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF' + MCM_RED } };
+          } else {
+            cell.font = { name: 'Calibri', size: 9, color: { argb: 'FF' + MCM_ORANGE } };
+          }
+        });
+
+        // Ingeniero column (Jefe only) — styled
+        if (isJefe) {
+          row.getCell(3).font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF' + MCM_BLUE_LT } };
+        }
+      });
+
+      /* ── SUMMARY ROW ── */
+      var sumRowNum = ws.lastRow.number + 2;
+      ws.mergeCells(sumRowNum, 1, sumRowNum, 3);
+      var sumCell = ws.getCell(sumRowNum, 1);
+      var totalOTs = ots.length;
+      var vencidas = ots.filter(function(o) { return isOverdue(o); }).length;
+      var completas = ots.filter(function(o) { return isOTClosed(o); }).length;
+      var enProceso = totalOTs - vencidas - completas;
+      sumCell.value = '📊  RESUMEN: ' + totalOTs + ' OTs  |  En Proceso: ' + enProceso + '  |  Vencidas: ' + vencidas + '  |  Completadas: ' + completas;
+      sumCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF' + MCM_BLUE } };
+      sumCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+      /* ── FOOTER ── */
+      var footRowNum = sumRowNum + 1;
+      ws.mergeCells(footRowNum, 1, footRowNum, 3);
+      var footCell = ws.getCell(footRowNum, 1);
+      footCell.value = 'Generado por SGMCM v3.0 — ' + new Date().toLocaleString('es-MX');
+      footCell.font = { name: 'Calibri', size: 8, italic: true, color: { argb: 'FF999999' } };
+
+      /* ── Auto-filter on header row ── */
+      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: cols.length } };
+
+      /* ── Download ── */
+      var fileName = 'SGMCM_OTs_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+      wb.xlsx.writeBuffer().then(function(buffer) {
+        var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        _toast('✅ Excel generado: ' + fileName, 'ok', 3500);
+      });
+    }
 
     /* INIT */
     if (!_restoreSession()) {
