@@ -140,7 +140,7 @@ window.addEventListener("unhandledrejection", function(e) {
       { key: 'zarate', name: 'Fernando Zarate', initials: 'FZ', isJefe: false },
       { key: 'hernandez', name: 'Misael Hernández', initials: 'MH', isJefe: false },
       { key: 'ahumada', name: 'Fernando Ahumada', initials: 'FA', isJefe: false },
-      { key: 'cruz', name: 'Axel Gonzalez', initials: 'AC', isJefe: false },
+      { key: 'cruz', name: 'Axel Gonzales', initials: 'AG', isJefe: false },
       { key: 'alfredo', name: 'Alfredo', initials: 'AL', isJefe: true },
     ];
     const FIELD_ENGINEERS = ['zarate', 'hernandez', 'ahumada', 'cruz'];
@@ -295,7 +295,7 @@ window.addEventListener("unhandledrejection", function(e) {
       if (banner) banner.style.display = isJefe ? 'flex' : 'none';
       if (wrap) wrap.style.display = isJefe ? 'flex' : 'none';
       if (!isJefe || !wrap) return;
-      var names = { zarate: 'F. Zarate', hernandez: 'M. Hernández', ahumada: 'F. Ahumada', cruz: 'A. Cruz' };
+      var names = { zarate: 'F. Zarate', hernandez: 'M. Hernández', ahumada: 'F. Ahumada', cruz: 'A. Gonzales' };
       var keys = ['all'].concat(FIELD_ENGINEERS);
       var html = '';
       for (var i = 0; i < keys.length; i++) {
@@ -440,8 +440,8 @@ window.addEventListener("unhandledrejection", function(e) {
     function diffDays(a, b) { var r = Math.round((b - a) / 86400000); return isNaN(r) ? 9999 : r; }
     function escHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     // Helpers de ingeniero (globales, usados en panel y detalle)
-    function engInitials(key) { var m = { zarate: 'FZ', hernandez: 'MH', ahumada: 'FA', cruz: 'AC' }; return m[key] || '?'; }
-    function engShortName(key) { var m = { zarate: 'F. Zarate', hernandez: 'M. Hernández', ahumada: 'F. Ahumada', cruz: 'A. Cruz' }; return m[key] || key || '?'; }
+    function engInitials(key) { var m = { zarate: 'FZ', hernandez: 'MH', ahumada: 'FA', cruz: 'AG' }; return m[key] || '?'; }
+    function engShortName(key) { var m = { zarate: 'F. Zarate', hernandez: 'M. Hernández', ahumada: 'F. Ahumada', cruz: 'A. Gonzales' }; return m[key] || key || '?'; }
     // Helper: renders a labeled input inside workflow detail blocks
     function detInp(label, key, val, ph, type, saveFn) {
       type = type || 'text';
@@ -597,7 +597,7 @@ window.addEventListener("unhandledrejection", function(e) {
         zarate: { name: 'F. Zarate', initials: 'FZ' },
         hernandez: { name: 'M. Hernández', initials: 'MH' },
         ahumada: { name: 'F. Ahumada', initials: 'FA' },
-        cruz: { name: 'A. Cruz', initials: 'AC' }
+        cruz: { name: 'A. Gonzales', initials: 'AG' }
       };
 
       /* ── Per-engineer stats ── */
