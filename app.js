@@ -156,7 +156,9 @@ window.addEventListener("unhandledrejection", function(e) {
            currentOT = ots.find(function(o){ return o.id === currentOT.id; }) || currentOT;
            renderDetailInfo(); renderTasks(); renderTimeline();
         }
-      }, 50); // Debounce de 50ms ráfagas
+        // Refresh notification alerts when data changes
+        if (typeof _checkAndNotify === 'function') _checkAndNotify();
+      }, 50);
     }
 
     function loginAs(key, name, initials, isJefe) {
@@ -186,7 +188,8 @@ window.addEventListener("unhandledrejection", function(e) {
         var refData = database.ref('storage/' + storeDATA());
         refOts.on('value', function(snap) {
           var data = snap.val() || [];
-          ots = Array.isArray(data) ? data : Object.values(data);
+          var parsed = Array.isArray(data) ? data : Object.values(data);
+          ots = parsed.filter(function(o) { return o != null; });
           if (!ots.length && !localStorage.getItem('mcm_cleared_' + currentEngineer.key)) _seedDemoData();
           _refreshCurrentViews();
         });
@@ -197,6 +200,8 @@ window.addEventListener("unhandledrejection", function(e) {
         fbListeners.push(refOts, refData);
       }
       _toast(currentEngineer.isJefe ? '👑 Vista global, Alfredo' : '▸ Bienvenido, ' + name, 'ok', 2500);
+      // Init notification system after login
+      setTimeout(initNotifications, 800);
     }
 
     function switchEngineer() {
@@ -205,6 +210,11 @@ window.addEventListener("unhandledrejection", function(e) {
       var badge = document.getElementById('engBadge'); if (badge) badge.style.display = 'none';
       var fsb = document.getElementById('floatSaveBtn'); if (fsb) fsb.classList.remove('visible', 'saved');
       _renderJefeUI();
+      // Hide notification bell on logout
+      var notifW = document.getElementById('notifWrap'); if (notifW) notifW.style.display = 'none';
+      var notifB = document.getElementById('notifBadge'); if (notifB) notifB.style.display = 'none';
+      if (_notifCheckInterval) { clearInterval(_notifCheckInterval); _notifCheckInterval = null; }
+      _notifDismissed = new Set();
       var ls = document.getElementById('loginScreen');
       if (ls) {
         ls.removeAttribute('style'); ls.style.display = 'flex';
@@ -263,6 +273,7 @@ window.addEventListener("unhandledrejection", function(e) {
         var arr = Array.isArray(rawArr) ? rawArr : Object.values(rawArr);
         var data = allData['mcm_otdata_v3_' + key] || {};
         arr.forEach(function (o) {
+          if (!o) return;
           var tagged = {}; Object.keys(o).forEach(function (k) { tagged[k] = o[k]; });
           tagged._owner = key;
           allOts.push(tagged);
@@ -388,7 +399,8 @@ window.addEventListener("unhandledrejection", function(e) {
         
         FIELD_ENGINEERS.forEach(function(k) {
             var rawOts = fbStorageCache['mcm_ots_v3_' + k] || [];
-            byOwner[k].ots = Array.isArray(rawOts) ? rawOts.slice() : Object.values(rawOts);
+            var parsed = Array.isArray(rawOts) ? rawOts.slice() : Object.values(rawOts);
+            byOwner[k].ots = parsed.filter(function(x) { return x != null; });
             byOwner[k].otData = fbStorageCache['mcm_otdata_v3_' + k] || {};
         });
 
@@ -1695,9 +1707,9 @@ window.addEventListener("unhandledrejection", function(e) {
 
     function saveOTModal() {
       const ot = document.getElementById('fOt').value.trim(), id = document.getElementById('fId').value.trim(), cli = document.getElementById('fCliente').value.trim(), srv = document.getElementById('fServicio').value.trim();
-      if (!ot || !cli) { alert('OT y Cliente son obligatorios.'); return; }
+      if (!ot || !cli) { _toast('⚠ OT y Cliente son obligatorios', 'error', 3000); return; }
       const detV = document.getElementById('fDetonacion').value, limV = document.getElementById('fLimite').value;
-      if (detV && limV && limV < detV) { alert('\u26a0\ufe0f La fecha l\u00edmite no puede ser anterior a la fecha de detonaci\u00f3n.'); return; }
+      if (detV && limV && limV < detV) { _toast('⚠ La fecha límite no puede ser anterior a la detonación', 'error', 3500); return; }
       const lev = document.getElementById('fLevantamiento').value;
       const dis = document.getElementById('fDiseno').value;
       const impl = document.getElementById('fImplementacion').value;
@@ -1817,7 +1829,7 @@ window.addEventListener("unhandledrejection", function(e) {
 
     function deleteOT(id) {
       var ot = ots.find(function (o) { return o.id === id; });
-      if (!ot) { console.warn('[MCM] deleteOT: OT no encontrada en memoria, id=', id); return; }
+      if (!ot) { return; }
       showConfirm('¿Eliminar "' + String(ot.ot || id) + '"? Esta acción no se puede deshacer.', function () {
         _doDeleteOT(id);
       });
@@ -2334,3 +2346,200 @@ window.addEventListener("unhandledrejection", function(e) {
     if (!_restoreSession()) {
       showView('Dashboard');
     }
+
+    /* ═══════════════════════════════════════════════════════
+       NOTIFICATION SYSTEM — Bell, Alerts, Browser Notifs
+    ═══════════════════════════════════════════════════════ */
+
+    var _notifDismissed = new Set();
+    var _notifCheckInterval = null;
+
+    function _buildNotifAlerts() {
+      if (!ots.length) return [];
+      var today = new Date();
+      today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      var alerts = [];
+
+      ots.forEach(function(o) {
+        if (isOTClosed(o)) return; // skip completed
+        var lim = parseDate(o.limite);
+        if (!lim) return;
+        var days = diffDays(today, lim);   // positive = future, negative = past
+        var id = 'n_' + o.id;
+        if (_notifDismissed.has(id)) return;
+
+        var ownerLabel = currentEngineer && currentEngineer.isJefe
+          ? ' · ' + engShortName(o._owner) : '';
+
+        if (days < 0) {
+          // Vencida
+          alerts.push({ id: id, ot: o, days: days, type: 'critical',
+            icon: '🚨', daysLabel: Math.abs(days) + 'd atraso',
+            daysClass: 'red', title: (o.ot || '—') + ownerLabel,
+            sub: (o.cliente || '—') + ' · F.Límite: ' + (o.limite || '—') });
+        } else if (days <= 3) {
+          alerts.push({ id: id, ot: o, days: days, type: 'warning',
+            icon: '⚠️', daysLabel: days === 0 ? '¡HOY!' : days + 'd',
+            daysClass: 'amber', title: (o.ot || '—') + ownerLabel,
+            sub: (o.cliente || '—') + ' · Vence: ' + (o.limite || '—') });
+        } else if (days <= 7) {
+          alerts.push({ id: id, ot: o, days: days, type: 'info',
+            icon: '📅', daysLabel: days + 'd',
+            daysClass: 'blue', title: (o.ot || '—') + ownerLabel,
+            sub: (o.cliente || '—') + ' · Vence: ' + (o.limite || '—') });
+        }
+      });
+
+      // Sort: vencidas primero, luego por días
+      alerts.sort(function(a, b) { return a.days - b.days; });
+      return alerts;
+    }
+
+    function _renderNotifPanel(alerts) {
+      var list = document.getElementById('notifList');
+      var badge = document.getElementById('notifBadge');
+      var bell = document.getElementById('notifBell');
+      if (!list || !badge || !bell) return;
+
+      var critical = alerts.filter(function(a) { return a.type === 'critical'; });
+      var warning  = alerts.filter(function(a) { return a.type === 'warning'; });
+      var info     = alerts.filter(function(a) { return a.type === 'info'; });
+
+      if (!alerts.length) {
+        list.innerHTML = '<div class="notif-empty">✓ Sin alertas pendientes</div>';
+        badge.style.display = 'none';
+        bell.classList.remove('has-alerts');
+        return;
+      }
+
+      var html = '';
+
+      function renderSection(label, items) {
+        if (!items.length) return '';
+        var s = '<div class="notif-section-label">' + label + '</div>';
+        items.forEach(function(a) {
+          s += '<div class="notif-item notif-' + a.type + '" onclick="notifGoToOT(\'' + a.ot.id + '\',\'' + a.id + '\')">'
+             + '<div class="notif-icon">' + a.icon + '</div>'
+             + '<div class="notif-content">'
+             +   '<div class="notif-title">' + escHtml(a.title) + '</div>'
+             +   '<div class="notif-sub">' + escHtml(a.sub) + '</div>'
+             + '</div>'
+             + '<div class="notif-days ' + a.daysClass + '">' + a.daysLabel + '</div>'
+             + '</div>';
+        });
+        return s;
+      }
+
+      html += renderSection('🚨 VENCIDAS', critical);
+      html += renderSection('⚠ VENCEN EN ≤ 3 DÍAS', warning);
+      html += renderSection('📅 VENCEN EN ≤ 7 DÍAS', info);
+
+      list.innerHTML = html;
+
+      // Badge
+      badge.textContent = alerts.length > 9 ? '9+' : alerts.length;
+      badge.style.display = 'flex';
+      bell.classList.add('has-alerts');
+    }
+
+    function _checkAndNotify() {
+      var alerts = _buildNotifAlerts();
+      _renderNotifPanel(alerts);
+
+      // Browser notification solo si hay críticas y el panel está cerrado
+      var panel = document.getElementById('notifPanel');
+      var panelOpen = panel && panel.classList.contains('open');
+      var critical = alerts.filter(function(a) { return a.type === 'critical'; });
+
+      if (critical.length && !panelOpen && Notification.permission === 'granted') {
+        new Notification('⚠ MCM SGMCM — OTs Vencidas', {
+          body: critical.length + ' OT' + (critical.length > 1 ? 's' : '') + ' requieren atención urgente.',
+          icon: './assets/icon-192.png',
+          badge: './assets/icon-192.png',
+          tag: 'mcm-critical-' + new Date().toDateString(), // evita spam (1 por día)
+          silent: false
+        });
+      }
+    }
+
+    function initNotifications() {
+      var wrap = document.getElementById('notifWrap');
+      if (wrap) wrap.style.display = 'flex';
+
+      // Pedir permiso de forma no intrusiva
+      if (Notification.permission === 'default') {
+        // Solo pedimos cuando el usuario ha interactuado con la app
+        setTimeout(function() {
+          Notification.requestPermission();
+        }, 5000);
+      }
+
+      _checkAndNotify();
+
+      // Chequeo periódico cada 30 minutos
+      if (_notifCheckInterval) clearInterval(_notifCheckInterval);
+      _notifCheckInterval = setInterval(_checkAndNotify, 30 * 60 * 1000);
+
+      // Cerrar panel al hacer click fuera
+      document.addEventListener('click', function(e) {
+        var wrap = document.getElementById('notifWrap');
+        var panel = document.getElementById('notifPanel');
+        if (wrap && panel && !wrap.contains(e.target)) {
+          panel.classList.remove('open');
+        }
+      });
+    }
+
+    function toggleNotifPanel() {
+      var panel = document.getElementById('notifPanel');
+      if (!panel) return;
+      var isOpen = panel.classList.toggle('open');
+      // Refresh alerts when opening
+      if (isOpen) {
+        var alerts = _buildNotifAlerts();
+        _renderNotifPanel(alerts);
+      }
+    }
+
+    function dismissAllNotifs() {
+      var alerts = _buildNotifAlerts();
+      alerts.forEach(function(a) { _notifDismissed.add(a.id); });
+      _renderNotifPanel([]);
+      var panel = document.getElementById('notifPanel');
+      if (panel) panel.classList.remove('open');
+    }
+
+    function notifGoToOT(otId, notifId) {
+      // Dismiss this alert
+      _notifDismissed.add(notifId);
+      // Navigate to OT detail
+      var o = ots.find(function(x) { return x.id === otId; });
+      if (o) {
+        showView('Panel');
+        setTimeout(function() { openDetail(o); }, 150);
+      }
+      // Close panel
+      var panel = document.getElementById('notifPanel');
+      if (panel) panel.classList.remove('open');
+      // Re-render badge
+      var remaining = _buildNotifAlerts();
+      _renderNotifPanel(remaining);
+    }
+
+    /* ── SERVICE WORKER REGISTRATION ── */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js').then(function(reg) {
+          setInterval(function() { reg.update(); }, 60 * 60 * 1000);
+          reg.addEventListener('updatefound', function() {
+            var newSW = reg.installing;
+            newSW.addEventListener('statechange', function() {
+              if (newSW.state === 'activated') {
+                _toast('🔄 Nueva versión disponible — recarga para actualizar', 'ok', 5000);
+              }
+            });
+          });
+        }).catch(function(err) {});
+      });
+    }
+

@@ -15,6 +15,12 @@
 
   <!-- Favicon MCM Business Tech Co -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='og' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23f47920'/%3E%3Cstop offset='100%25' stop-color='%23ff9a45'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='%23060d1a'/%3E%3Crect x='2' y='2' width='28' height='28' rx='5' fill='url(%23og)'/%3E%3Crect x='6' y='20' width='3' height='6' rx='1' fill='rgba(0,0,0,0.18)'/%3E%3Crect x='23' y='20' width='3' height='6' rx='1' fill='rgba(0,0,0,0.18)'/%3E%3Ctext x='16' y='21.5' font-family='Arial Black%2CImpact%2Csans-serif' font-size='11.5' font-weight='900' fill='white' text-anchor='middle' letter-spacing='0.3'%3EMCM%3C/text%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0A3D7C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MCM SGMCM">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
   <link rel="stylesheet" href="styles.css">
 
 </head>
@@ -97,6 +103,23 @@
         <div>
           <div class="eng-badge-name" id="engBadgeName">—</div>
           <div class="eng-badge-hint">cambiar perfil</div>
+        </div>
+      </div>
+
+      <!-- Notification Bell -->
+      <div class="notif-wrap" id="notifWrap" style="display:none">
+        <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()" title="Notificaciones">
+          🔔
+          <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+        </button>
+        <div class="notif-panel" id="notifPanel">
+          <div class="notif-panel-header">
+            <span>🔔 Alertas</span>
+            <button class="notif-dismiss" onclick="dismissAllNotifs()" title="Marcar todas como vistas">✓ Listo</button>
+          </div>
+          <div class="notif-panel-body" id="notifList">
+            <div class="notif-empty">Sin alertas pendientes ✓</div>
+          </div>
         </div>
       </div>
 

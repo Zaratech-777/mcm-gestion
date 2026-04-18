@@ -3418,6 +3418,219 @@
     }
 
     /* ══════════════════════════════════════
+   NOTIFICATION SYSTEM
+══════════════════════════════════════ */
+
+    .notif-wrap {
+      position: relative;
+    }
+
+    .notif-bell {
+      position: relative;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 7px 12px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .notif-bell:hover {
+      background: rgba(244,121,32,0.15);
+      border-color: rgba(244,121,32,0.4);
+    }
+
+    .notif-bell.has-alerts {
+      animation: bellRing 2.5s ease-in-out infinite;
+    }
+
+    @keyframes bellRing {
+      0%,100%   { transform: rotate(0deg);   }
+      5%        { transform: rotate(15deg);  }
+      10%       { transform: rotate(-12deg); }
+      15%       { transform: rotate(10deg);  }
+      20%       { transform: rotate(-8deg);  }
+      25%       { transform: rotate(0deg);   }
+    }
+
+    .notif-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #B02020;
+      color: #fff;
+      font-size: 0.62rem;
+      font-weight: 700;
+      font-family: 'Share Tech Mono', monospace;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      border: 2px solid var(--bg);
+      animation: badgePop 0.3s cubic-bezier(.4,0,.2,1);
+    }
+
+    @keyframes badgePop {
+      0%   { transform: scale(0); opacity: 0; }
+      70%  { transform: scale(1.25); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .notif-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: 340px;
+      background: var(--dark-card);
+      border: 1px solid rgba(244,121,32,0.3);
+      border-radius: 14px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 20px rgba(244,121,32,0.08);
+      z-index: 9999;
+      transform: translateY(-8px) scale(0.96);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s cubic-bezier(.4,0,.2,1);
+      transform-origin: top right;
+    }
+
+    .notif-panel.open {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .notif-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--dark-border);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--mcm-orange-lt);
+      letter-spacing: 1px;
+    }
+
+    .notif-dismiss {
+      background: rgba(244,121,32,0.1);
+      border: 1px solid rgba(244,121,32,0.3);
+      color: var(--mcm-orange);
+      font-size: 0.7rem;
+      font-family: 'Share Tech Mono', monospace;
+      padding: 3px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .notif-dismiss:hover {
+      background: rgba(244,121,32,0.2);
+    }
+
+    .notif-panel-body {
+      max-height: 380px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .notif-panel-body::-webkit-scrollbar { width: 4px; }
+    .notif-panel-body::-webkit-scrollbar-track { background: transparent; }
+    .notif-panel-body::-webkit-scrollbar-thumb { background: rgba(244,121,32,0.3); border-radius: 2px; }
+
+    .notif-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      border: 1px solid transparent;
+    }
+
+    .notif-item:hover {
+      background: rgba(255,255,255,0.04);
+    }
+
+    .notif-item.notif-critical {
+      border-color: rgba(176,32,32,0.3);
+      background: rgba(176,32,32,0.06);
+    }
+
+    .notif-item.notif-warning {
+      border-color: rgba(245,166,35,0.3);
+      background: rgba(245,166,35,0.06);
+    }
+
+    .notif-item.notif-info {
+      border-color: rgba(244,121,32,0.2);
+      background: rgba(244,121,32,0.04);
+    }
+
+    .notif-icon {
+      font-size: 1.2rem;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+
+    .notif-content { flex: 1; min-width: 0; }
+
+    .notif-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .notif-sub {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.45);
+      margin-top: 2px;
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .notif-days {
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: 'Share Tech Mono', monospace;
+      flex-shrink: 0;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .notif-days.red   { background: rgba(176,32,32,0.2); color: #ff7070; }
+    .notif-days.amber { background: rgba(245,166,35,0.2); color: #F5A623; }
+    .notif-days.blue  { background: rgba(109,179,255,0.2); color: #6db3ff; }
+
+    .notif-empty {
+      text-align: center;
+      padding: 28px 16px;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.3);
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    .notif-section-label {
+      font-size: 0.62rem;
+      font-family: 'Share Tech Mono', monospace;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 1.5px;
+      padding: 6px 12px 4px;
+      text-transform: uppercase;
+    }
+
+    /* ══════════════════════════════════════
    RESPONSIVE — MOBILE BREAKPOINTS
 ══════════════════════════════════════ */
 
